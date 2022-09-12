@@ -1,6 +1,8 @@
 # Created by https://www.toptal.com/developers/gitignore/api/latex,python
 # Edit at https://www.toptal.com/developers/gitignore?templates=latex,python
 
+venv/*
+
 ### LaTeX ###
 ## Core latex/pdflatex auxiliary files:
 *.aux
@@ -476,4 +478,3 @@ cython_debug/
 #.idea/
 
 # End of https://www.toptal.com/developers/gitignore/api/latex,python
-
