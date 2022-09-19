@@ -1,5 +1,7 @@
 \documentclass[a4paper]{article}
 
+\usepackage{amsfonts}
+
 \author{Jelmer Firet, Bram Pulles}
 \title{\textbf{Automated Reasoning\\Practical Assignment -- Part 1}}
 
@@ -11,7 +13,86 @@ We have chosen to use Z3 for solving all of the assignments. In particular we
 use the pythonic Z3 library.
 
 \section{Pallets}
+In this task we need to distribute pallets of various goods over a limited
+number of trucks. To this end we have formulated the problem as a system of
+linear equations. We created an integer variable $v_{g,t}$ for every $good$ and
+$truck$ combination such that $v_{g,t} \in good \times truck$. This variable
+describes how many pallets of a certain good are in the specific truck. Using
+just these variables we can describe all of the constraints.
 
+\begin{itemize}
+	\item
+		We can only have a positive number of pallets in a truck.
+		\[ \forall_{v_{g,t} \in good \times truck}\ v_{g,t} \geq 0 \]
+	\item
+		Every truck has at most eight pallets.
+		\[ \forall_{t \in truck}\ \left( \sum_{g \in good} v_{g,t} \right) \leq 8 \]
+	\item
+		Every truck can carry at most 8000 kg. Let $w$ be a function giving the
+		weight of a given good $w: good \to \mathbb{N}$.
+		\[ \forall_{t \in truck}\ \left( \sum_{g \in good} w(g) \right) \leq 8000 \]
+	\item
+		For every good all the pallets are distributed. Except for prittles, as
+		no number of pallets is specified, we need to maximize this. Let $p$ be
+		a function giving the number of pallets of a given good $p: good \to
+		\mathbb{N}$.
+		\[
+		\forall_{g \in good \setminus prittles}\
+		\left( \sum_{t \in truck} v_{g,t} \right) = p(g)
+		\]
+	\item
+		Only three trucks can contain skipples. Let $t_i$ be the $i-$th truck,
+		starting at $i = 1$.
+		\[ \forall_{t_i \in truck, i > 3 }\ v_{skipples,t} = 0 \]
+	\item
+		No two pallets of nuzzles may be in the same truck.
+		\[ \forall_{t \in truck}\ v_{nuzzles,t} \leq 1 \]
+	\item
+		Prittles and crottles are not allowed to be put in the same truck.
+		\[ \forall_{t \in truck}\ v_{prittles,t} = 0 \lor v_{crottles,t} = 0 \]
+\end{itemize}
+
+All of the constraints described above can be easily converted to Z3. In order
+to let Z3 automatically maximize the number of pallets with prittles we set the
+maximisation function to maximize the formula shown below.
+
+\[ \sum_{t \in truck} v_{prittles,t} \]
+
+Running our program \textit{without} the last constraint (question 1) gives us
+the result shown below. Every row is a truck, every column is the good starting
+with that letter. As can be seen from the table, all the pallets can be
+distributed and there are a total of $8 + 5 + 5 + 4 = 22$ prittles pallets.
+\begin{verbatim}
+    n s c d p
+0 : 0 0 0 0 8
+1 : 0 8 0 0 0
+2 : 1 0 2 0 5
+3 : 1 0 2 0 5
+4 : 0 0 2 6 0
+5 : 0 0 0 4 4
+6 : 1 0 2 5 0
+7 : 1 0 2 5 0
+\end{verbatim}
+
+Running our program \textit{with} the last constraint (question 2) gives us the
+result shown below. Again, all the pallets can be distributed and there are a
+total of $4 + 8 + 8 = 20$ prittles pallets.
+
+\begin{verbatim}
+    n s c d p
+0 : 0 4 0 0 4
+1 : 1 2 2 1 0
+2 : 0 2 2 4 0
+3 : 0 0 0 0 8
+4 : 1 0 2 5 0
+5 : 1 0 2 5 0
+6 : 1 0 2 5 0
+7 : 0 0 0 0 8
+\end{verbatim}
+
+Our program and formalisation are generalised under the number of trucks, the
+truck maximum weight and maximum number of pallets. It is also very easy to add
+more goods, change their weight or change the number of pallets.
 
 \section{Chip design}
 
