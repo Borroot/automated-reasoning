@@ -37,7 +37,7 @@ for truck in range(3,8):
 
 for truck in range(8):
 	solver.add(distribution['nuzzle'][truck] <= 1)
-	solver.add(Or(distribution['prittle'][truck] == 0, 
+	solver.add(Or(distribution['prittle'][truck] == 0,
 		          distribution['crottle'][truck] == 0))
 
 with open('pallets.smt', 'w') as file:
@@ -57,6 +57,3 @@ if (solver.check()):
 		print()
 else:
 	print('unsat')
-
-
-
