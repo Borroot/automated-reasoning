@@ -1,9 +1,28 @@
-\documentclass[a4paper]{article}
+\documentclass{scrartcl}
+\usepackage{amsmath}
+\usepackage{fancyhdr}
+\usepackage{minted}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{svg}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{scalerel}
 
 \usepackage{amsfonts}
 
-\author{Jelmer Firet, Bram Pulles}
+\author{Jelmer Firet (s1023433, \href{mailto:jelmer.firet@ru.nl}{jelmer.firet@ru.nl}) \and
+        Bram Pulles()}
 \title{\textbf{Automated Reasoning\\Practical Assignment -- Part 1}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{Automated Reasoning PA 1|Jelmer Firet \& Bram Pulles}
+\fancyhead[R]{\thepage}
+
+\setminted{autogobble,tabsize=4,fontsize=\scriptsize}
+\setlength{\parindent}{0pt}
+
 
 \begin{document}
 \maketitle
@@ -95,6 +114,150 @@ truck maximum weight and maximum number of pallets. It is also very easy to add
 more goods, change their weight or change the number of pallets.
 
 \section{Chip design}
+
+We consider the chip as a $30\times30$ grid. We number the rows from top to bottom, so the top row has index $0$ and the bottom row has index $29$. The columns are numbered the same way from left tot right.
+
+\subsection{variables} % (fold)
+\label{sub:chip_variables}
+	For each component $i$ we introduce $4$ integer variables: $\mathtt{left}_i$, $\mathtt{right}_i$, $\mathtt{top}_i$ and $\mathtt{bottom}_i$.\\
+	These variables indicate where the edges of component $i$ are.\\
+
+	\begin{tabular}{ll}
+		$\mathtt{left}_i$ & The left-most column that contains component $i$\\
+		$\mathtt{right}_i$ & The left-most column to the right of component $i$\\
+		$\mathtt{top}_i$ & The top-most column that contains component $i$\\
+		$\mathtt{bottom}_i$ & The top-most column below component $i$\\
+	\end{tabular}\\
+
+	Note that $\mathtt{left}_i$ is inclusive; the corresponding column contains component $i$.\\
+	However, $\mathtt{right}_i$ is exclusive; the corresponding column does not contain component $i$.\\
+	Inclusive-exclusive indexing ensures that $\mathtt{right}_i-\mathtt{left}_i$ is the width of component $i$.\\
+	We also use this indexing for the rows, so $\mathtt{bottom}_i-\mathtt{top}_i$ is the height of component $i$.\\
+	Component $s$ consists of the cells $(r,c)$ with $\mathtt{left}_i \leq c < \mathtt{right}_i$ and $\mathtt{top}_i \leq r < \mathtt{bottom}_i$
+
+	\begin{figure}[H]
+		\centering
+		\begin{subfigure}[b]{0.30\textwidth}
+			\centering
+			\includesvg[width=\textwidth]{chips-indexes}
+		\end{subfigure}
+		\begin{subfigure}[b]{0.5\textwidth}
+			\centering
+			\begin{align*}
+				\mathtt{left}_i&=1 & \mathtt{right}_i &= 4\\
+				\mathtt{top}_i&=1 & \mathtt{bottom}_i &= 3
+			\end{align*}
+			\begin{align*}
+				\mathtt{width}_i=\mathtt{right}_i-\mathtt{left}_i&=4-1=3\\
+				\mathtt{height}_i=\mathtt{bottom}_i-\mathtt{top}_i&=3-1=2
+			\end{align*}
+		\end{subfigure}
+	\end{figure}
+% subsection chip_variables (end)
+
+\subsection{Constraints} % (fold)
+\label{sub:chip_constraints}
+\begin{enumerate}
+	\item 
+	We want every component to be placed inside the $30\times 30$ grid.\\
+	For this we add four constrains for each component:
+	\begin{align*}
+		0 &\leq \mathtt{left}_i & \mathtt{right}_i &\leq 30 & 0 &\leq \mathtt{top}_i & \mathtt{bottom}_i &\leq 30
+	\end{align*}
+	For every cell $(r,c)$ of component $i$ we then have:
+	\begin{align*}
+		0 \leq \mathtt{left}_i \leq c <  \mathtt{right}_i \leq 30 &&
+		0 \leq \mathtt{top}_i \leq r < \mathtt{bottom}_i \leq 30
+	\end{align*}
+	So each cell of the component is within the grid.
+	
+	\item 
+	We want each component to have the correct size.\\
+	Suppose component $i$ should have size $(w,h)$ then we add the constraint:
+	\begin{align*}
+		(\mathtt{right}_i-\mathtt{left}_i = w\;&\land\; \mathtt{bottom}_i-\mathtt{top}_i = h)\;\lor\\
+		(\mathtt{right}_i-\mathtt{left}_i = h\;&\land\; \mathtt{bottom}_i-\mathtt{top}_i = w)
+	\end{align*}
+	The first line says that the component has the right size when it is not rotated.\\
+	The second line says that the component has the right size if it is rotated 90$^\circ$.\\
+	Because we want the component to have the right size in either orientation, we combine these clauses with an $\lor$.
+	
+	\item 
+	We do not want any of the components to overlap.
+	For every pair of components $i<j$ we add the following constraint:
+	\begin{align*}
+		\mathtt{right}_i &\leq \mathtt{left}_j &\lor&&
+		\mathtt{left}_i &\geq \mathtt{right}_j &\lor&&
+		\mathtt{bottom}_i &\leq \mathtt{top}_j &\lor&&
+		\mathtt{top}_i &\geq \mathtt{bottom}_j
+	\end{align*}
+	This constrains say that component $j$ is entirely to the right, to the left, below or above component $i$. In each of these cases there is no overlap possible.
+	
+	\item 
+	We want every regular component to share part of an edge with a power component.\\
+	For every regular component $i$ we add the following constraint:
+	\begin{align*}
+		\scalerel*{\lor}{\sum}_{p\in P}\left(
+		\begin{array}{l}
+			(\mathtt{right}_i = \mathtt{left}_p \;\land\; \mathtt{top}_i < \mathtt{bottom}_p \;\land\; \mathtt{top}_p < \mathtt{bottom}_i)\;\lor\\
+			(\mathtt{left}_i = \mathtt{right}_p \;\land\; \mathtt{top}_i < \mathtt{bottom}_p \;\land\; \mathtt{top}_p < \mathtt{bottom}_i)\;\lor\\
+			(\mathtt{bottom}_i = \mathtt{top}_p \;\land\; \mathtt{left}_i < \mathtt{right}_p \;\land\; \mathtt{left}_p > \mathtt{right}_i)\;\lor\\
+			(\mathtt{top}_i = \mathtt{bottom}_p \;\land\; \mathtt{left}_i < \mathtt{right}_p \;\land\; \mathtt{left}_p > \mathtt{right}_i)
+		\end{array}
+		\right)
+	\end{align*}
+
+	This statement starts with a big or over the power components. This ensures that there is a power component $p$ that touches component $i$.\\
+	Within the parenthesis we find four cases: component $i$ touches the left, the right, the top or the bottom of power component $p$.
+	To check if two components touch we need two parts.\\
+	First, both components need to touch a vertical or horizontal line from different sides. This is ensured by the first condition of every case.\\
+	Second, they need to share a part of that line, which is ensured by the other conditions.
+	We will only explain these other conditions for the first case.
+
+	In the first case the components touch a vertical line.
+	For the components to share a part of this line, there must be a row $r$ that contains both components.\\
+	This line must satisfy $\mathtt{top}_i \leq r < \mathtt{bottom}_i$ and $\mathtt{top}_p \leq r < \mathtt{bottom}_p$\\
+	We can combine these inequalities to form the following four conditions:
+	\begin{align*}
+		\mathtt{top}_i &< \mathtt{bottom}_i &\mathtt{top}_i &< \mathtt{bottom}_p & \mathtt{top}_p &< \mathtt{bottom}_i &\mathtt{top}_p &< \mathtt{bottom}_p
+	\end{align*}
+	The first and last condition are always satisfied (by part 2 and $0<w,h$).\\
+	The other conditions are added to the first case to guarantee overlap.
+	
+	\item The centers of the power components are far enough apart
+	For every pair $p < q$ of power components we add the following constraint:
+	\begin{align*}
+		((\mathtt{top}_p + \mathtt{bottom}_p) - (\mathtt{top}_q + \mathtt{bottom}_q) &\geq 2\cdot D)\;\lor\\
+		((\mathtt{top}_q + \mathtt{bottom}_q) - (\mathtt{top}_p + \mathtt{bottom}_p) &\geq 2\cdot D)\;\lor\\
+		((\mathtt{left}_p + \mathtt{right}_p) - (\mathtt{left}_q + \mathtt{right}_q) &\geq 2\cdot D)\;\lor\\
+		((\mathtt{left}_q + \mathtt{right}_q) - (\mathtt{left}_p + \mathtt{right}_p) &\geq 2\cdot D)
+	\end{align*}
+
+	There are four cases: the center of component $p$ is $D$ units below, above, to the left or to the right of the center of component $q$. To ensure the vertical distance between the centers of two components we could use the following formula:
+	\begin{align*}
+		\lvert(\mathtt{top}_p + \mathtt{bottom}_p)/2 - (\mathtt{top}_q + \mathtt{bottom}_q)/2\rvert \geq D
+	\end{align*}
+	However we would like a formula without division or absolute values.
+	To get rid of the division we multiply everything by $2$.
+	We remove the absolute value by splitting the equation into two cases.
+	This equation then becomes the first two cases of our constraint.
+	The other two cases are found by considering the horizontal distance.
+\end{enumerate}
+% subsection chip_constraints (end)
+
+\subsection{Result} % (fold)
+\label{sub:result}
+The largest $D$ for which we can find a result is $17.5$.
+For $D=17.5$ it finds a result in $1.865$ seconds.
+For $D=18$ it proves that it is unsatisfiable in $67.782$ seconds.
+
+A solution for $D=17.5$ is illustrated below:
+\begin{figure}[H]
+	\centering
+	\includesvg[width=0.7\textwidth]{chips-solution}
+\end{figure}
+
+% subsection result (end)
 
 
 \section{Dinner}
