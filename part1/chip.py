@@ -1,8 +1,10 @@
 from z3 import *
 import random
+import colorsys
 
 height = 30
 width = 30
+minDist = 17
 
 power = (3,4)
 numPower = 2
@@ -23,12 +25,8 @@ powerVars = []
 componentVars = []
 allVars = []
 
-solver = Optimize();
+solver = Solver();
 
-minDist = Int('minDist')
-solver.maximize(minDist)
-solver.add(16 <= minDist)
-solver.add(minDist <= 19)
 
 for i in range(numPower):
 	newVars = {};
@@ -69,25 +67,24 @@ for i in range(len(components)):
 	solver.add(0 <= newVars['top'])
 	solver.add(newVars['bottom'] <= height)
 	size = components[i]
-	solver.add(Or(And(newVars['right'] - newVars['left'] == size[0],
-	                  newVars['bottom'] - newVars['top'] == size[1]),
-	              And(newVars['right'] - newVars['left'] == size[1],
-	                 newVars['bottom'] - newVars['top'] == size[0])))
+	isVertical = And(newVars['right'] - newVars['left'] == size[0],
+	               newVars['bottom'] - newVars['top'] == size[1])
+	isHorizontal = And(newVars['right'] - newVars['left'] == size[1],
+	                 newVars['bottom'] - newVars['top'] == size[0])
+	solver.add(Or(isVertical, isHorizontal))
 
 	touches = []
 	for power in powerVars:
-		touches.append(And(power['left'] == newVars['right'],
-		                   power['top'] < newVars['bottom'],
-		                   power['bottom'] > newVars['top']))
-		touches.append(And(power['right'] == newVars['left'],
-		                   power['top'] < newVars['bottom'],
-		                   power['bottom'] > newVars['top']))
-		touches.append(And(power['top'] == newVars['bottom'],
-		                   power['left'] < newVars['right'],
-		                   power['right'] > newVars['left']))
-		touches.append(And(power['bottom'] == newVars['top'],
-		                   power['left'] < newVars['right'],
-		                   power['right'] > newVars['left']))
+		overlaps_y = And(power['top'] < newVars['bottom'],
+		                 power['bottom'] > newVars['top'])
+		touches.append(And(power['left'] == newVars['right'], overlaps_y))
+		touches.append(And(power['right'] == newVars['left'], overlaps_y))
+
+		overlaps_x = And(power['left'] < newVars['right'],
+		                 power['right'] > newVars['left'])
+		touches.append(And(power['top'] == newVars['bottom'], overlaps_x))
+		touches.append(And(power['bottom'] == newVars['top'], overlaps_x))
+
 	solver.add(Or(*touches))
 
 	componentVars.append(newVars)
@@ -101,25 +98,26 @@ for i in range(len(allVars)):
 		              allVars[j]['bottom'] <= allVars[i]['top']
 		))
 
-if solver.check():
-	print('sat')
-
+solvable = solver.check()
+print(solvable)
+if solvable == sat:
 	grid = [['\x1b[40m' for c in range(width)] for r in range(height)]
 
 	model = solver.model()
 
-	print(model[minDist])
+	# print(model[minDist])
 
-	for idx in range(len(allVars)):
-		component = allVars[idx]
+	for i in range(len(allVars)):
+		component = allVars[i]
 		left = model[component['left']].as_long()
 		right = model[component['right']].as_long()
 		top = model[component['top']].as_long()
 		bottom = model[component['bottom']].as_long()
 		
-		red = random.randint(32,255)
-		green = random.randint(32,255)
-		blue = random.randint(32,255)
+		red,green,blue = colorsys.hsv_to_rgb(float(i)/len(allVars), 1, 1)
+		red = int(255*red)
+		green = int(255*green)
+		blue = int(255*blue)
 		color = "\x1b[48;2;{};{};{}m".format(red, green, blue)
 		for r in range(top,bottom):
 			for c in range(left, right):
@@ -131,5 +129,3 @@ if solver.check():
 			print('  ',end='')
 			print('\x1b[0m',end='')
 		print()
-else:
-	print('unsat')
