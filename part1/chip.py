@@ -4,7 +4,7 @@ import colorsys
 
 height = 30
 width = 30
-minDist = 17
+minDist = 17.5
 
 power = (3,4)
 numPower = 2
