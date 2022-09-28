@@ -12,7 +12,7 @@
 \usepackage{amsfonts}
 
 \author{Jelmer Firet (s1023433, \href{mailto:jelmer.firet@ru.nl}{jelmer.firet@ru.nl}) \and
-        Bram Pulles()}
+Bram Pulles(s1015194, \href{mailto:bram.pulles@ru.nl}{bram.pulles@ru.nl})}
 \title{\textbf{Automated Reasoning\\Practical Assignment -- Part 1}}
 
 \pagestyle{fancy}
@@ -158,7 +158,7 @@ We consider the chip as a $30\times30$ grid. We number the rows from top to bott
 \subsection{Constraints} % (fold)
 \label{sub:chip_constraints}
 \begin{enumerate}
-	\item 
+	\item
 	We want every component to be placed inside the $30\times 30$ grid.\\
 	For this we add four constrains for each component:
 	\begin{align*}
@@ -170,8 +170,8 @@ We consider the chip as a $30\times30$ grid. We number the rows from top to bott
 		0 \leq \mathtt{top}_i \leq r < \mathtt{bottom}_i \leq 30
 	\end{align*}
 	So each cell of the component is within the grid.
-	
-	\item 
+
+	\item
 	We want each component to have the correct size.\\
 	Suppose component $i$ should have size $(w,h)$ then we add the constraint:
 	\begin{align*}
@@ -181,8 +181,8 @@ We consider the chip as a $30\times30$ grid. We number the rows from top to bott
 	The first line says that the component has the right size when it is not rotated.\\
 	The second line says that the component has the right size if it is rotated 90$^\circ$.\\
 	Because we want the component to have the right size in either orientation, we combine these clauses with an $\lor$.
-	
-	\item 
+
+	\item
 	We do not want any of the components to overlap.
 	For every pair of components $i<j$ we add the following constraint:
 	\begin{align*}
@@ -192,8 +192,8 @@ We consider the chip as a $30\times30$ grid. We number the rows from top to bott
 		\mathtt{top}_i &\geq \mathtt{bottom}_j
 	\end{align*}
 	This constrains say that component $j$ is entirely to the right, to the left, below or above component $i$. In each of these cases there is no overlap possible.
-	
-	\item 
+
+	\item
 	We want every regular component to share part of an edge with a power component.\\
 	For every regular component $i$ we add the following constraint:
 	\begin{align*}
@@ -223,7 +223,7 @@ We consider the chip as a $30\times30$ grid. We number the rows from top to bott
 	\end{align*}
 	The first and last condition are always satisfied (by part 2 and $0<w,h$).\\
 	The other conditions are added to the first case to guarantee overlap.
-	
+
 	\item The centers of the power components are far enough apart
 	For every pair $p < q$ of power components we add the following constraint:
 	\begin{align*}
