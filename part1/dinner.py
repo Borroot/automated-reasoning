@@ -21,11 +21,7 @@ groupHost = [[Bool('g{} h{}'.format(group, house))
 
 solver = Solver()
 
-optional_a = []
-optional_b =[]
-optional_c = []
-optional_d = []
-optional_d2 = []
+optional = {'A': [], 'B': [], 'C': [], 'D': []}
 
 for group in range(numGroup):
 	# At least 5 people in each group
@@ -39,7 +35,7 @@ for group in range(numGroup):
 		solver.add(Implies(groupHost[group][house], And(*hosts)))
 
 		# If a couple does not host, they are not in the same group
-		optional_c.append(Implies(Not(groupHost[group][house]), AtMost(*hosts,1)))
+		optional['C'].append(Implies(Not(groupHost[group][house]), AtMost(*hosts,1)))
 
 	# Each group is hosted by exactly one house
 	solver.add(AtLeast(*groupHost[group],1))
@@ -57,16 +53,16 @@ for person in range(numPerson):
 		solver.add(AtMost(*meetups, maxMeetup))
 
 		# Every two people meet each-other at least once
-		optional_a.append(AtLeast(*meetups, 1))
+		optional['A'].append(AtLeast(*meetups, 1))
 		# Every two people meet each-other at most three times
-		optional_b.append(AtMost(*meetups, 3))
+		optional['B'].append(AtMost(*meetups, 3))
 
 	for house in range(numHouse):
 		if person // coupleSize == house:
 			continue
 		# Everyone is at most once a guest at another house
 		hosted = [And(inGroup[person][group], groupHost[group][house]) for group in range(numGroup)]
-		optional_d.append(AtMost(*hosted, 1))
+		optional['D'].append(AtMost(*hosted, 1))
 
 for house in range(numHouse):
 	# Everyone hosts at least groupsPerHouse times
@@ -91,16 +87,13 @@ subsets = [[]]
 for req in reqs:
 	subsets = [subset for subset in subsets] + [subset + [req] for subset in subsets]
 for subset in subsets:
-	solver.push()
 	print('with requirements {}'.format(', '.join(subset)))
-	if 'A' in subset:
-		solver.add(And(*optional_a))
-	if 'B' in subset:
-		solver.add(And(*optional_b))
-	if 'C' in subset:
-		solver.add(And(*optional_c))
-	if 'D' in subset:
-		solver.add(And(*optional_d))
+	if 'A' in subset and 'B' in subset:
+		print('unknown')
+		continue
+	solver.push()
+	for req in subset:
+		solver.add(And(*optional[req]))
 	solvable = solver.check()
 	if solvable != sat:
 		print(solvable)
