@@ -333,14 +333,15 @@ This denotes the number of true statements among the statements $S(i)$.
 We have run Z3 for every subset of additional constraints with the standard constraints.
 We have noticed that Z3 takes too long to decide the cases where constraints A and B are both required.\\
 The only combination that was proven to be unsatisfiable was $A,C,D$. This implies that the combination of $A,B,C,D$ is also unsatisfiable.\\
+We have run a brute-force search using C++ on the rounds to show that A and B can not be both satisfied
 All remaining subsets are satisfiable.\\
 
 \begin{tabular}{ll|llll}
 \multicolumn{2}{l|}{} & & & A & A \\
 \multicolumn{2}{l|}{\multirow{-2}{*}{Constraints}} & & B & & B \\ \hline
- & & \cellcolor{green!50}SAT & \cellcolor{green!50}SAT & \cellcolor{green!50}SAT & \cellcolor{yellow!50}UNKNOWN \\
- & D & \cellcolor{green!50}SAT & \cellcolor{green!50}SAT & \cellcolor{green!50}\textbf{SAT} & \cellcolor{yellow!50}UNKNOWN \\
-C & & \cellcolor{green!50}SAT & \cellcolor{green!50}SAT & \cellcolor{green!50}\textbf{SAT} & \cellcolor{yellow!50}UNKNOWN \\
+ & & \cellcolor{green!50}SAT & \cellcolor{green!50}SAT & \cellcolor{green!50}SAT & \cellcolor{red!30}UNSAT \\
+ & D & \cellcolor{green!50}SAT & \cellcolor{green!50}SAT & \cellcolor{green!50}\textbf{SAT} & \cellcolor{red!30}UNSAT \\
+C & & \cellcolor{green!50}SAT & \cellcolor{green!50}SAT & \cellcolor{green!50}\textbf{SAT} & \cellcolor{red!30}UNSAT \\
 C & D & \cellcolor{green!50}SAT & \cellcolor{green!50}\textbf{SAT} & \cellcolor{red!50}UNSAT & \cellcolor{red!50}UNSAT 
 \end{tabular}
 
