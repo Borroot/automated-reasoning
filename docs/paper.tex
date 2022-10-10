@@ -4,11 +4,12 @@
 \usepackage{minted}
 \usepackage{enumitem}
 \usepackage{hyperref}
+\usepackage{multirow}
+\usepackage[table]{xcolor}
 \usepackage{svg}
 \usepackage{caption}
 \usepackage{subcaption}
 \usepackage{scalerel}
-
 \usepackage{amsfonts}
 
 \author{Jelmer Firet (s1023433, \href{mailto:jelmer.firet@ru.nl}{jelmer.firet@ru.nl}) \and
@@ -82,7 +83,7 @@ the result shown below. Every row is a truck, every column is the good starting
 with that letter. As can be seen from the table, all the pallets can be
 distributed and there are a total of $8 + 5 + 5 + 4 = 22$ prittles pallets.
 \begin{verbatim}
-    n s c d p
+ n s c d p
 0 : 0 0 0 0 8
 1 : 0 8 0 0 0
 2 : 1 0 2 0 5
@@ -98,7 +99,7 @@ result shown below. Again, all the pallets can be distributed and there are a
 total of $4 + 8 + 8 = 20$ prittles pallets.
 
 \begin{verbatim}
-    n s c d p
+ n s c d p
 0 : 0 4 0 0 4
 1 : 1 2 2 1 0
 2 : 0 2 2 4 0
@@ -166,7 +167,7 @@ We consider the chip as a $30\times30$ grid. We number the rows from top to bott
 	\end{align*}
 	For every cell $(r,c)$ of component $i$ we then have:
 	\begin{align*}
-		0 \leq \mathtt{left}_i \leq c <  \mathtt{right}_i \leq 30 &&
+		0 \leq \mathtt{left}_i \leq c < \mathtt{right}_i \leq 30 &&
 		0 \leq \mathtt{top}_i \leq r < \mathtt{bottom}_i \leq 30
 	\end{align*}
 	So each cell of the component is within the grid.
@@ -261,6 +262,123 @@ A solution for $D=17.5$ is illustrated below:
 
 \section{Dinner}
 
+\subsection{Variables} % (fold)
+\label{sub:dinner_variables}
+We use the following terminology:
+\begin{itemize}
+	\item A \textbf{person} indicates a single person.
+	\item A \textbf{house} indicates a place where people dine together.
+	\item A \textbf{round} indicates a single day at which people dine together.
+	\item A \textbf{group} indicates a group that eats in the same house on the same day.
+\end{itemize}
+With $p\in h$ we will denote that person $p$ lives in house $h$.\\
+With $g\in r$ we will denote that group $g$ dines during round $r$.\\
+
+We use the following variables:\\
+\begin{tabular}{ll}
+	$\mathtt{inGroup}_{gp}$ & true when person $p$ dines with group $g$.\\
+	$\mathtt{groupHost}_{gh}$ & true when group $g$ dines at house $h$.\\
+\end{tabular}
+
+% subsection dinner_variables (end)
+
+\subsection{Constraints} % (fold)
+\label{sub:dinner_constraints}
+We have a lot of constraints that reference how many statements are true.\\
+We will use the following shorthand: $\sum_i S(i)$\\
+This denotes the number of true statements among the statements $S(i)$.
+\begin{itemize}
+	\item Due to the 1.5 meter restriction in every house at most 5 people may be present.\\
+	We add the following constraint for every group $g$:
+	$$\sum_{p}\mathtt{inGroup}_{gp}\leq 5$$
+	\item \ldots by which every round has to be prepared and served in two houses simultaneously, each with the corresponding couple and three guests.\\
+	This states, with a lot of words, that all $10$ people dine each round.\\
+	We add the following constraint for each round $r$ and person $p$:
+	$$\sum_{g\in r}\mathtt{inGroup}_{gp}\geq 1$$
+	\item \ldots each with the corresponding couple \ldots\\
+	This means that the owners of a house must be present at a dinner in their house.\\
+	We add the following constraint for each group $g$, house $h$ and person $p\in h$:
+	$$\mathtt{groupHost}_{gh}\to\mathtt{inGroup}_{gp}$$
+	Additionally it states that each group must be hosted by exactly one couple.
+	We add the following constraint for each group $g$:
+	$$\sum_h\mathtt{groupHost}_{gh} = 1$$
+	\item Every couple will serve two rounds in their house.\\
+	We add the following constraint for each house $h$:\\
+	$$\sum_g\mathtt{groupHost_{gh}}\geq 2$$
+	\item Every two people among the 10 participants meet each other at most 4 times during these 5 rounds.\\
+	We add the following constraint for every pair of persons $p_1<p_2$:\\
+	$$\sum_g(\mathtt{inGroup}_{gp_1}\land\mathtt{inGroup}_{gp_2})\leq 4$$
+\subsection{Optional constraints} % (fold)
+\label{sub:dinner_optional_constraints}
+\begin{enumerate}[label=\Alph*)]
+	\item Every two people among the 10 participants meet each other at least once.\\
+	We add the following constraint for every pair of persons $p_1<p_2$:
+	$$\sum_g(\mathtt{inGroup}_{gp_1}\land\mathtt{inGroup}_{gp_2})\geq 1$$
+	\item Every two people among the 10 participants meet each other at most $3$ times.\\
+	We add the following constraint for every pair of persons $p_1<p_2$:
+	$$\sum_g(\mathtt{inGroup}_{gp_1}\land\mathtt{inGroup}_{gp_2})\leq 3$$
+	\item Couples never meet outside their own houses\\
+	We add the following constraint for every group $g$ and house $h$:
+	$$\mathtt{groupHost}_{gh}\lor\sum_{p\in h}\mathtt{inGroup}_{pg}\leq 1$$
+	If a couple does not host a group there is at most one person of the couple in that group. Therefore they do not meet in that group.
+	\item For every house the six guests are distinct.\\
+	This is the case exactly when each house hosts each person at most once.
+	We add the following constraint for every house $h$ and person $p\notin h$:
+	$$\sum_{g}(\mathtt{groupHost}_{gh}\land \mathtt{inGroup}_{pg})\leq 1$$
+\end{enumerate}
+% subsection dinner_optional_constraints (end)
+
+\subsection{Results} % (fold)
+\label{sub:dinner_results}
+We have run Z3 for every subset of additional constraints with the standard constraints.
+We have noticed that Z3 takes too long to decide the cases where constraints A and B are both required.\\
+The only combination that was proven to be unsatisfiable was $A,C,D$. This implies that the combination of $A,B,C,D$ is also unsatisfiable.\\
+All remaining subsets are satisfiable.\\
+
+\begin{tabular}{ll|llll}
+\multicolumn{2}{l|}{} & & & A & A \\
+\multicolumn{2}{l|}{\multirow{-2}{*}{Constraints}} & & B & & B \\ \hline
+ & & \cellcolor{green!50}SAT & \cellcolor{green!50}SAT & \cellcolor{green!50}SAT & \cellcolor{yellow!50}UNKNOWN \\
+ & D & \cellcolor{green!50}SAT & \cellcolor{green!50}SAT & \cellcolor{green!50}\textbf{SAT} & \cellcolor{yellow!50}UNKNOWN \\
+C & & \cellcolor{green!50}SAT & \cellcolor{green!50}SAT & \cellcolor{green!50}\textbf{SAT} & \cellcolor{yellow!50}UNKNOWN \\
+C & D & \cellcolor{green!50}SAT & \cellcolor{green!50}\textbf{SAT} & \cellcolor{red!50}UNSAT & \cellcolor{red!50}UNSAT 
+\end{tabular}
+
+Here are solutions to the bold subsets that imply satisfiability of all green subsets:\\
+
+\begin{tabular}{l|ll|lll|ll|lll}
+B,C,D & \multicolumn{5}{l|}{House 1} & \multicolumn{5}{l}{House 2} \\
+Round & \multicolumn{2}{l}{Host} & \multicolumn{3}{l|}{Guest} & \multicolumn{2}{l}{Host} & \multicolumn{3}{l}{Guest} \\ \hline
+1 & 0 & 1 & 3 & 5 & 9 & 6 & 7 & 2 & 4 & 8 \\
+2 & 0 & 1 & 2 & 4 & 6 & 8 & 9 & 3 & 5 & 7 \\
+3 & 2 & 3 & 0 & 6 & 8 & 4 & 5 & 1 & 7 & 9 \\
+4 & 2 & 3 & 1 & 7 & 9 & 4 & 5 & 0 & 6 & 8 \\
+5 & 6 & 7 & 1 & 3 & 5 & 8 & 9 & 0 & 2 & 4 \\
+\end{tabular}
+
+\begin{tabular}{l|ll|lll|ll|lll}
+A,C & \multicolumn{5}{l|}{House 1} & \multicolumn{5}{l}{House 2} \\
+Round & \multicolumn{2}{l}{Host} & \multicolumn{3}{l|}{Guest} & \multicolumn{2}{l}{Host} & \multicolumn{3}{l}{Guest} \\ \hline
+1 & 0 & 1 & 2 & 5 & 9 & 6 & 7 & 3 & 4 & 8 \\
+2 & 0 & 1 & 3 & 5 & 6 & 8 & 9 & 2 & 4 & 7 \\
+3 & 2 & 3 & 0 & 5 & 7 & 8 & 9 & 1 & 4 & 6 \\
+4 & 2 & 3 & 1 & 7 & 9 & 4 & 5 & 0 & 6 & 8 \\
+5 & 4 & 5 & 1 & 3 & 9 & 6 & 7 & 0 & 2 & 8 \\
+\end{tabular}
+
+\begin{tabular}{l|ll|lll|ll|lll}
+A,D & \multicolumn{5}{l|}{House 1} & \multicolumn{5}{l}{House 2} \\
+Round & \multicolumn{2}{l}{Host} & \multicolumn{3}{l|}{Guest} & \multicolumn{2}{l}{Host} & \multicolumn{3}{l}{Guest} \\ \hline
+1 & 0 & 1 & 6 & 7 & 9 & 2 & 3 & 4 & 5 & 8 \\
+2 & 0 & 1 & 2 & 4 & 8 & 6 & 7 & 3 & 5 & 9 \\
+3 & 2 & 3 & 0 & 1 & 6 & 4 & 5 & 7 & 8 & 9 \\
+4 & 4 & 5 & 0 & 1 & 3 & 8 & 9 & 2 & 6 & 7 \\
+5 & 6 & 7 & 0 & 2 & 4 & 8 & 9 & 1 & 3 & 5 \\
+\end{tabular}
+% subsection dinner_results (end)
+	
+\end{itemize}
+% subsection dinner_constraints (end)
 
 \section{Program safety}
 In order to test whether it is possible for the program to crash we use the SMT

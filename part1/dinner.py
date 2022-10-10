@@ -24,10 +24,10 @@ solver = Solver()
 optional = {'A': [], 'B': [], 'C': [], 'D': []}
 
 for group in range(numGroup):
-	# At least 5 people in each group
+	# At most 5 people in each group
 	visitors = [inGroup[person][group]
 	            for person in range(numPerson)]
-	solver.add(AtLeast(*visitors,groupSize))
+	solver.add(AtMost(*visitors,groupSize))
 
 	for house in range(numHouse):
 		# The hosts are present in the group they host
@@ -42,10 +42,10 @@ for group in range(numGroup):
 	solver.add(AtMost(*groupHost[group],1))
 
 for person in range(numPerson):
-	# Each person visits at most one group each round
+	# Each person visits at least one group each round
 	for round in range(numRound):
 		groups = inGroup[person][groupPerRound*round:groupPerRound*(round+1)]
-		solver.add(AtMost(*groups, 1))
+		solver.add(AtLeast(*groups, 1))
 
 	for other in range(person+1, numPerson):
 		# Everyone meets each-other at most maxMeetup times
