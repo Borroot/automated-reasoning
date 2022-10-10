@@ -12,7 +12,7 @@
 \usepackage{amsfonts}
 
 \author{Jelmer Firet (s1023433, \href{mailto:jelmer.firet@ru.nl}{jelmer.firet@ru.nl}) \and
-Bram Pulles(s1015194, \href{mailto:bram.pulles@ru.nl}{bram.pulles@ru.nl})}
+Bram Pulles (s1015194, \href{mailto:bram.pulles@ru.nl}{bram.pulles@ru.nl})}
 \title{\textbf{Automated Reasoning\\Practical Assignment -- Part 1}}
 
 \pagestyle{fancy}
@@ -259,11 +259,76 @@ A solution for $D=17.5$ is illustrated below:
 
 % subsection result (end)
 
-
 \section{Dinner}
 
 
 \section{Program safety}
+In order to test whether it is possible for the program to crash we use the SMT
+solver to check if the crashing statement can be reached. If the crash cannot
+be reached the formula will be unsatisfiable. If the crash can be reached the
+formula will be satisfiable and the variable assignment will provide us a value
+for the if-statement in every iteration.
+\\
+
+We start by creating a variable $l = 10$ for the number of iterations the loop
+will make. We also create $l + 1$ integer variables $a_i$ and $b_i$, where
+$a_0$ and $b_0$ are the initial values of $a$ and $b$, the others describe the
+values of $a$ and $b$ at every iteration of the loop. Lastly, we create $l$
+boolean $c_i$ variables to denote the value of the if-statement at iteration
+$i$.
+
+\begin{enumerate}
+	\item
+		We start with adding the constraints for the initial values of $a$ and $b$.
+		$$a_0 = 1 \land b_0 = 1$$
+
+	\item
+		If the if-statement is true we want to update the values of $a$ and $b$
+		accordingly. This is done using the following constraint.
+		\[
+			\forall_{1 \leq i \leq l + 1}
+			\left ( c_{i-1} \to
+				a_i = a_{i-1} + 2 \cdot b_{i-1} \land
+				b_i = b_{i-1} + i
+			\right )
+		\]
+	\item
+		If the if-statement is false we want to update the values of $a$ and $b$
+		accordingly. This is done using the following constraint.
+		\[
+			\forall_{1 \leq i \leq l + 1}
+			\left ( \lnot c_{i-1} \to
+				b_i = a_{i-1} + b_{i-1} \land
+				a_i = a_{i-1} + i
+			\right )
+		\]
+	\item
+		At last we want to check whether the program can crash, such that
+		$\text{SAT} \leftrightarrow \text{crash}$.
+		\[ b_l = 700 + n \]
+\end{enumerate}
+
+Running our program with all of these constraints yields the output shown
+below. The path shows the consecutive evaluations of the if-statement, with
+\texttt{f} as false and \texttt{t} as true, which leads to a crash.
+
+\begin{verbatim}
+n = 1 is sat -> crash
+path ffttttftff
+n = 2 is unsat
+n = 3 is unsat
+n = 4 is sat -> crash
+path ttfftftttf
+n = 5 is unsat
+n = 6 is sat -> crash
+path tftfffttff
+n = 7 is unsat
+n = 8 is sat -> crash
+path ttftftftft
+n = 9 is unsat
+n = 10 is sat -> crash
+path ttfttftttf
+\end{verbatim}
 
 
 \end{document}

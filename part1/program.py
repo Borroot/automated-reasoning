@@ -50,8 +50,11 @@ for n in range(1, 11):
     if solvable == sat:
         print(" -> crash", end=" ")
         decisions = [is_true(solver.model()[v.c[i]]) for i in range(loops)]
-        if simulate(decisions, n): print("verified")
-        else: print("WRONG")
+        if simulate(decisions, n):
+            print()
+            print("path", "".join(map(lambda b: "t" if b else "f", decisions)))
+        else:
+            print("WRONG")
     else:
         print()
 
