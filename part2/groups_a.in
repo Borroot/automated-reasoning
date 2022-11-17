@@ -1,0 +1,18 @@
+assign(max_seconds, 30).
+
+formulas(assumptions).
+
+	x * (y * z) = (x * y) * z.
+	x * I = x.
+	x * inv(x) = I.
+
+end_of_list.
+
+formulas(goals).
+
+	I * x = x.
+	inv(inv(x)) = x.
+	inv(x) * x = I.
+	% inv(x * y) = inv(x) * inv(y).
+
+end_of_list.
