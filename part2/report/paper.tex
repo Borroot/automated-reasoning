@@ -59,6 +59,98 @@ Bram Pulles (s1015194, \href{mailto:bram.pulles@ru.nl}{bram.pulles@ru.nl})}
 \end{enumerate}
 % section groups (end)
 
+\section{Robot} % (fold)
+\label{sec:robot}
+
+	\subsection{Explanation} % (fold)
+	\label{sub:explanation}
+	In this problem we are given a grid with colored cells. We should program a robot for this grid so that the robot will always find it's way to one of the goal cells if it starts on any start cell.
+	The robot can detect the color of the cell it is on and decide based on that color which direction to move. Our program should find the best assignment of directions to colors. We will Z3 to find this assignment.
+
+	In our program we read the grid from a csv file.
+	We then determine the number of colors in this grid.
+	For each color we make a Z3 integer that will store the direction to move for that color. The values of this integer correspond to the following directions:\\
+
+	\begin{tabular}{l|ll}
+		value & direction & effect on coordinates\\
+		\hline
+		0 & north & decreasing row\\
+		1 & east & increasing column\\
+		2 & south & increasing row\\
+		3 & west & decreasing column\\
+	\end{tabular}\\
+
+	To ensure that Z3 only assigns one of these, we add the following constraint:
+	$$\mathtt{\forall_{color}: 0 \le direction[color] < 4}$$
+
+	Now we want to evaluate the performance of an assignment. For this we want to know for every cell if we reach a destination, and if so in how many steps. We will add a Z3 integer storing this distance for every cell. For now we will say that this integer has the value $\infty$ if it can not reach a destination cell.\\
+
+	We then specify how the distances interact with the commands. We will start with the simple cases; the destination and the lava. For a destination cell we do not need to move to reach a destination cell, therefore we add the following constraint:
+	$$\mathtt{\forall_{0\le r<R}\forall_{0\le c<C}\text{ if }grid[r][c]=DESTINATION: dist[r][c]=0}$$
+	We do something similar for lava. From a lava cell we cannot reach a destination cell, so we add the following constraint:
+	$$\mathtt{\forall_{0\le r<R}\forall_{0\le c<C}\text{ if }grid[r][c]=LAVA: dist[r][c]=\infty}$$
+
+	Now we will specify what the robot does for regular cells. For convenience we have a function $\mathtt{next(r,c,direction,steps)}$ that give the position we go to when we take $\mathtt{steps}$ steps to $\mathtt{direction}$ from cell $(\mathtt{r},\mathtt{c})$. This function takes into account that the robot stops at the edges of the grid.
+	\begin{align*}
+		&\mathtt{\forall_{0\le r<R}\forall_{0\le c<C}\forall_{0\le dir<4}\text{ if }\neg special(grid[r][c]):}\\
+		&\mathtt{direction[grid[r][c]]=dir \implies dist[r][c]=1+dist[nr][nc]}\\
+		&\text{ where }
+		\mathtt{(nr,nc) = next(r,c,dir,1)}
+	\end{align*}
+	Note that we consider $1+\infty=\infty$. When we give $\infty$ an actual value, we will have to specify this special case explicitly.
+
+	We can now specify how the ice cells work. We want $\mathtt{dist[r][c]}$ to store the worst-case distance to a destination cell. We will have a similar condition to the one for the regular cells, but take the maximum of the cells where we can end up. This translates into the following constraint:
+	\begin{align*}
+		&\mathtt{\forall_{0\le r<R}\forall_{0\le c<C}\forall_{0\le dir<4}\text{ if } grid[r][c] = ICE:}\\
+		&\mathtt{direction[grid[r][c]]=dir \implies dist[r][c]=1+\max(dist[nr][nc],dist[nr',nc'])}\\
+		&\text{ where }
+		\mathtt{(nr,nc) = next(r,c,dir,1) \text{ and } (nr',nc') = next(r,c,dir,2)}
+	\end{align*}
+
+	Now we are ready to specify what we want to achieve, we want an assignment of directions to colors that minimizes
+	$$\mathtt{\max_{0\le r < R, 0\le c < C, grid[r][c]=START} dist[r][c]}$$
+	We do this by adding a Z3 integer for this goal and ask the Z3 optimizer to minimize this variable. Then we add the following constraint:
+	$$\mathtt{\forall_{0\le r<R}\forall_{0\le c<C}\text{ if }grid[r][c]=START: dist[r][c]\le goal}$$
+
+	Now we can choose a value for $\infty$. We do not want the $\mathtt{dist[r][c]}$ of start cells to be infinite, but otherwise the value does not matter. Therefore we choose the value of $\infty$ to be $\mathtt{goal+1}$. Then in all of the previous constraints of the form $\mathtt{dist[r][c]=\ldots}$ we add the extra option that $\mathtt{dist[r][c]=goal+1}$. This allows Z3 to assign values to all distances even in the case of an infinite loop.
+	% subsection explanation (end)
+
+	\subsection{Results} % (fold)
+	\label{sub:results}
+	When we run our program on the demogrid, we find that the minimal solution uses 11 steps\footnote{The problem statement gives a "solution for 10 steps", but the image shows a solution with 11 steps}. The assignment of directions is visualized in figure \ref{robot-demogrid-solution}.
+
+	On grid (a) our program finds that the minimal solution uses 14 steps. The assignment of directions is visualized in figure \ref{robot-grid-a-solution}
+
+	On grid (b) our program also finds a minimal solution of 14 steps, which is visualised in figure \ref{robot-grid-b-solution}
+
+	On grid (c) our program also finds a minimal solution of 18 steps, which is visualised in figure \ref{robot-grid-c-solution}
+
+	\begin{figure}
+		\begin{subfigure}{0.5\textwidth}
+			\includegraphics[width=0.9\textwidth]{resources/Screenshot from 2022-11-21 12-14-49.png}
+			\caption{Solution for demo grid}
+			\label{robot-demogrid-solution}
+		\end{subfigure}
+		\begin{subfigure}{0.5\textwidth}
+			\includegraphics[width=0.9\textwidth]{resources/Screenshot from 2022-11-21 12-20-11.png}
+			\caption{Solution for grid (a)}
+			\label{robot-grid-a-solution}
+		\end{subfigure}
+		\begin{subfigure}{0.5\textwidth}
+			\includegraphics[width=0.9\textwidth]{resources/Screenshot from 2022-11-21 12-21-43.png}
+			\caption{Solution for grid (b)}
+			\label{robot-grid-b-solution}
+		\end{subfigure}
+		\begin{subfigure}{0.5\textwidth}
+			\includegraphics[width=0.9\textwidth]{resources/Screenshot from 2022-11-21 12-23-17.png}
+			\caption{Solution for grid (c)}
+			\label{robot-grid-c-solution}
+		\end{subfigure}
+
+	\end{figure}
+	% subsection results (end)
+
+% section robot (end)
 \appendix
 \pagebreak
 \section{Groups}

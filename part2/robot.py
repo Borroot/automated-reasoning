@@ -31,15 +31,15 @@ for i in range(numColor):
 	optimize.add(0 <= direction[i])
 	optimize.add(direction[i] < 4)
 
-def next(r,c,direction, dist):
+def next(r,c,direction, steps):
 	if direction == NORTH:
-		return max(r-dist, 0), c
+		return max(r-steps, 0), c
 	if direction == EAST:
-		return r, min(c+dist, width-1)
+		return r, min(c+steps, width-1)
 	if direction == SOUTH:
-		return min(r+dist, height-1), c
+		return min(r+steps, height-1), c
 	if direction == WEST:
-		return r, max(c-dist, 0)
+		return r, max(c-steps, 0)
 
 
 dist = [[Int("dist {} {}".format(r,c)) for c in range(width)] for r in range(height)]
