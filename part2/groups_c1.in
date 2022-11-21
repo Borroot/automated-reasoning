@@ -7,8 +7,6 @@ formulas(assumptions).
 	x * inv(x) = I.
 
 	x * x = I.
-	% x * (x * x) = I.
-	% x * (x * (x * x)) = I.
 
 end_of_list.
 

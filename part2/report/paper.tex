@@ -1,4 +1,5 @@
 \documentclass{scrartcl}
+
 \usepackage{amsmath}
 \usepackage{fancyhdr}
 \usepackage{minted}
@@ -14,7 +15,7 @@
 
 \author{Jelmer Firet (s1023433, \href{mailto:jelmer.firet@ru.nl}{jelmer.firet@ru.nl}) \and
 Bram Pulles (s1015194, \href{mailto:bram.pulles@ru.nl}{bram.pulles@ru.nl})}
-\title{\textbf{Automated Reasoning\\Practical Assignment -- Part 1}}
+\title{\textbf{Automated Reasoning\\Practical Assignment -- Part 2}}
 
 \pagestyle{fancy}
 \fancyhf{}
@@ -31,17 +32,109 @@ Bram Pulles (s1015194, \href{mailto:bram.pulles@ru.nl}{bram.pulles@ru.nl})}
 \section{Groups} % (fold)
 \label{sec:groups}
 \begin{enumerate}[label=\alph*)]
-\item 
-	Using prover9 we can prove that $I*x=x$, $inv(inv(x))=x$ and $inv(x)*x=I$.\\
-	However, it is not true in general that $inv(x*y)=inv(x)*inv(y)$.\\
-	The smallest group for which this does not hold has size $6$.
-\item 
-	The smallest non-Abelian group has size $6$.
-\item 
-	For $n=2$ all such groups are Abelian.\\
-	For $n=3$ the group is not Abelian in general and the smallest counterexample has size $27$.\\
-	For $n=4$ the group is not Abelian and the smallest counterexample has size $8$.
+\item
+	We proved that $I*x=x$, $inv(inv(x))=x$ and $inv(x)*x=I$ by putting all of
+	the given formulas \textit{literally} in prover9, see
+	\texttt{groups\_a1.in}.
+
+	Using mace4, we show that, in general, $inv(x*y)=inv(x)*inv(y)$ does not
+	hold. The smallest group for which this does not hold has size $6$, see
+	\texttt{groups\_a2.in} and appendix \ref{apx: groups}.
+\item
+	Using mace4, we show that the smallest non-Abelian group has size $6$,
+	again by \textit{literally} putting in the formulas provided, see
+	\texttt{groups\_b.in} and appendix \ref{apx: groups}.
+\item
+	We use the fact that $x^2 = x * x$, $x^3 = x * (x * x)$ and $x^4 = x * (x *
+	(x * x))$ this makes encoding $x^n = I$ straightforward for $n = 2, 3, 4$.
+
+	Using prover9, we show that for $n=2$ all such groups are Abelian, see \texttt{groups\_c1.in}.
+
+	Using mace4, we show that for $n=3$ the group is not Abelian in general and
+	the smallest counterexample has size $27$, see \texttt{groups\_c2.in}.
+
+	Using mace4, we show that for $n=4$ the group is not Abelian and the
+	smallest counterexample has size $8$, see \texttt{groups\_c3.in} and
+	appendix \ref{apx: groups}.
 \end{enumerate}
 % section groups (end)
+
+\appendix
+\pagebreak
+\section{Groups}
+\label{apx: groups}
+\begin{enumerate}[label=\alph*)]
+	\item
+		Smallest finite group for which $inv(x*y)=inv(x)*inv(y)$ does not hold.
+		\begin{verbatim}
+		interpretation( 6, [number=1, seconds=0], [
+
+		    function(I, [ 0 ]),
+
+		    function(c1, [ 1 ]),
+
+		    function(c2, [ 2 ]),
+
+		    function(inv(_), [ 0, 1, 2, 4, 3, 5 ]),
+
+		    function(*(_,_), [
+		        0, 1, 2, 3, 4, 5,
+		        1, 0, 3, 2, 5, 4,
+		        2, 4, 0, 5, 1, 3,
+		        3, 5, 1, 4, 0, 2,
+		        4, 2, 5, 0, 3, 1,
+		        5, 3, 4, 1, 2, 0 ])
+		]).
+		\end{verbatim}
+
+	\item
+		Smallest non-abelian group.
+		\begin{verbatim}
+		interpretation( 6, [number=1, seconds=0], [
+
+			    function(I, [ 0 ]),
+
+			    function(c1, [ 1 ]),
+
+			    function(c2, [ 2 ]),
+
+			    function(inv(_), [ 0, 1, 2, 4, 3, 5 ]),
+
+			    function(*(_,_), [
+			        0, 1, 2, 3, 4, 5,
+			        1, 0, 3, 2, 5, 4,
+			        2, 4, 0, 5, 1, 3,
+			        3, 5, 1, 4, 0, 2,
+			        4, 2, 5, 0, 3, 1,
+			        5, 3, 4, 1, 2, 0 ])
+		]).
+		\end{verbatim}
+
+	\item
+		\pagebreak
+		Smallest non-abelian group with $x^4 = I$.
+		\begin{verbatim}
+		interpretation( 6, [number=1, seconds=0], [
+
+			    function(I, [ 0 ]),
+
+			    function(c1, [ 1 ]),
+
+			    function(c2, [ 2 ]),
+
+			    function(inv(_), [ 0, 1, 2, 4, 3, 5, 6, 7 ]),
+
+			    function(*(_,_), [
+			        0, 1, 2, 3, 4, 5, 6, 7,
+			        1, 0, 3, 2, 5, 4, 7, 6,
+			        2, 4, 0, 6, 1, 7, 3, 5,
+			        3, 5, 1, 7, 0, 6, 2, 4,
+			        4, 2, 6, 0, 7, 1, 5, 3,
+			        5, 3, 7, 1, 6, 0, 4, 2,
+			        6, 7, 4, 5, 2, 3, 0, 1,
+			        7, 6, 5, 4, 3, 2, 1, 0 ])
+		]).
+		\end{verbatim}
+\end{enumerate}
 
 \end{document}

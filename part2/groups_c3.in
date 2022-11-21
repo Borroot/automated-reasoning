@@ -6,13 +6,12 @@ formulas(assumptions).
 	x * I = x.
 	x * inv(x) = I.
 
+	x * (x * (x * x)) = I.
+
 end_of_list.
 
 formulas(goals).
 
-	I * x = x.
-	inv(inv(x)) = x.
-	inv(x) * x = I.
-	% inv(x * y) = inv(x) * inv(y).
+	x * y = y * x.
 
 end_of_list.
