@@ -208,8 +208,8 @@ for ineq in inequalities:
 							conditions.append(And(*condition))
 					print(Or(*conditions), file=sys.stderr)
 					# solver.add(term_compare['>c'][s][t] == False)
-					solver.add(term_compare['>c'][s][t] == And(fun_eq[s.name][t.name], True))
-					# solver.add(term_compare['>c'][s][t] == And(fun_eq[s.name][t.name], Or(*conditions)))
+					# solver.add(term_compare['>c'][s][t] == And(fun_eq[s.name][t.name], True))
+					solver.add(term_compare['>c'][s][t] == And(fun_eq[s.name][t.name], Or(*conditions)))
 				else:
 					solver.add(Not(term_compare['>b'][s][t]))
 					solver.add(Not(term_compare['>c'][s][t]))
