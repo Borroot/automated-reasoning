@@ -1,5 +1,7 @@
 from z3 import *
 import functools
+import itertools
+import sys
 
 class Term:
 	""" The base class for terms """
@@ -24,6 +26,12 @@ class Term:
 
 	def __hash__(self):
 		return self.toString().__hash__()
+
+	def __str__(self):
+		return self.toString()
+
+	def __repr__(self):
+		return self.toString()
 
 
 class Function(Term):
@@ -101,14 +109,16 @@ def parse_inequality(string : str, index : int) -> Comparison:
 	return Comparison(lhs, rhs)
 
 inequalities = []
-inequalities.append(parse_inequality('c(x,y,u,v) > b(f(x,y),b(u,u,u),g(v,b(x,y,u)))',1))
-inequalities.append(parse_inequality('b(f(x,y),g(x,y),f(x,g(z,u))) > b(f(x,z),y,g(g(g(y,x),x),x))',2))
-inequalities.append(parse_inequality('h(g(x,g(u,z)),c(x,y,x,z)) > f(d(x,z),u)',3))
-inequalities.append(parse_inequality('h(d(f(x,y),g(u,v)),f(x,y)) > f(c(u,x,v,y),g(y,x))',4))
-inequalities.append(parse_inequality('f(b(x,y,z),u) > h(u,f(x,h(y,x)))',5))
-inequalities.append(parse_inequality('b(a(x,y,z),y,x) > c(x,x,y,x)',6))
+# inequalities.append(parse_inequality('c(x,y,u,v) > b(f(x,y),b(u,u,u),g(v,b(x,y,u)))',1))
+# inequalities.append(parse_inequality('b(f(x,y),g(x,y),f(x,g(z,u))) > b(f(x,z),y,g(g(g(y,x),x),x))',2))
+# inequalities.append(parse_inequality('h(g(x,g(u,z)),c(x,y,x,z)) > f(d(x,z),u)',3))
+# inequalities.append(parse_inequality('h(d(f(x,y),g(u,v)),f(x,y)) > f(c(u,x,v,y),g(y,x))',4))
+# inequalities.append(parse_inequality('f(b(x,y,z),u) > h(u,f(x,h(y,x)))',5))
+# inequalities.append(parse_inequality('b(a(x,y,z),y,x) > c(x,x,y,x)',6))
+inequalities.append(parse_inequality('f(x) > x',7))
 
 solver = Solver()
+solver.set(':core.minimize', True)
 
 subterms = []
 for ineq in inequalities:
@@ -118,7 +128,6 @@ subterms = sorted(list(set(subterms)))
 
 functions = [term.name for term in subterms if isinstance(term, Function)]
 functions = sorted(list(set(functions)))
-print(functions)
 
 fun_ge = {}
 fun_gt = {}
@@ -165,13 +174,42 @@ for ineq in inequalities:
 				solver.add(Not(term_compare['>'][s][t]))
 
 			if isinstance(s, Function):
-				solver.add(term_compare['>'][s][t] == Or(term_compare['>a'][s][t], term_compare['>b'][s][t], term_compare['>c'][s][t]))
+				# solver.add(term_compare['>'][s][t] == Or(term_compare['>a'][s][t], term_compare['>b'][s][t], term_compare['>c'][s][t]))
+				solver.add(term_compare['>'][s][t] == Or(term_compare['>a'][s][t]))
 				solver.add(term_compare['>a'][s][t] == Or(*[term_compare['>~'][si][t] for si in s.args]))
 
 				if isinstance(t, Function):
 					solver.add(term_compare['>b'][s][t] == And(fun_gt[s.name][t.name], *[term_compare['>'][s][ti] for ti in t.args]))
+					conditions = []
+					n = len(s.args)
+					m = len(t.args)
+					for phi in itertools.product(range(n), repeat=m):
+						# e.g. phi = [0,1,0,2]
+						for eq in itertools.product([True,False], repeat=n):
+							# e.g. eq = [True, False, True]
+							valid = not all(eq)
+							for i in range(m):
+								if eq[phi[i]] and 1 < phi.count(phi[i]):
+									valid = False
+							for i in range(n):
+								if i not in phi and not eq[i]:
+									valid = False
+
+							if not valid:
+								continue
+
+							condition = []
+							for i in range(m):
+								if eq[phi[i]]:
+									condition.append(term_compare['~'][s.args[phi[i]]][t.args[i]])
+								else:
+									condition.append(term_compare['>'][s.args[phi[i]]][t.args[i]])
+							# print(phi,eq,And(*condition), file=sys.stderr)
+							conditions.append(And(*condition))
+					print(Or(*conditions), file=sys.stderr)
+					# solver.add(term_compare['>c'][s][t] == False)
 					solver.add(term_compare['>c'][s][t] == And(fun_eq[s.name][t.name], True))
-					# TODO: replace the True above
+					# solver.add(term_compare['>c'][s][t] == And(fun_eq[s.name][t.name], Or(*conditions)))
 				else:
 					solver.add(Not(term_compare['>b'][s][t]))
 					solver.add(Not(term_compare['>c'][s][t]))
@@ -183,15 +221,23 @@ for ineq in inequalities:
 			else:
 				solver.add(Not(term_compare['~a'][s][t]))
 
-			if isinstance(s, Function) and isinstance(t, Function):
-				solver.add(term_compare['~b'][s][t] == And(fun_eq[s.name][t.name], True))
-				# TODO: replace the True above
+			if isinstance(s, Function) and isinstance(t,Function) and len(s.args) == len(t.args):
+				lhs = s.args
+				conditions = []
+				for rhs in itertools.permutations(t.args):
+					conditions.append(And(*[term_compare['~'][lhs[i]][rhs[i]] for i in range(len(lhs))]))
+				solver.add(term_compare['~b'][s][t] == And(fun_eq[s.name][t.name], Or(*conditions)))
 			else:
 				solver.add(Not(term_compare['~b'][s][t]))
 
 	solver.add(term_compare['>'][ineq.lhs][ineq.rhs])
 
-print(solver.check())
+satisfiable = solver.check()
+if satisfiable != sat:
+	print("not satisfiable")
+	print(solver.unsat_core())
+	quit()
+
 model = solver.model()
 
 comparator = lambda x,y : int(is_true(model[fun_gt[x][y]])) - int(is_true(model[fun_gt[y][x]]))
