@@ -1,0 +1,33 @@
+assign(max_seconds, 30).
+
+op(700, infix, "|>=").
+op(700, infix, "|>").
+op(700, infix, "|=").
+
+op(700, infix, "~>=").
+op(700, infix, "~>").
+op(700, infix, "~=").
+
+formulas(assumptions).
+
+	% Order on functions
+	x |>= y | y |>= x.
+	x |>= y & y |>= z -> x |>= z.
+	x |>= x.
+	x |>= y & -(y |>= x) -> x |> y.
+	x |>= y & y |>= x -> x |= y.
+
+	x ~>= y <-> x ~> y | x ~= y.
+
+end_of_list.
+
+formulas(goals).
+
+	c(x, y, u, v) ~> b(f(x, y), b(u, u, u), g(v, b(x, y, u))).
+	b(f(x, y), g(x, y), f(x, g(z, u))) ~> b(f(x, z), y, g(g(g(y, x), x), x)).
+	h(g(x, g(u, z)), c(x, y, x, z)) ~> f(d(x, z), u).
+	h(d(f(x, y), g(u, v)), f(x, y)) ~> f(c(u, x, v, y), g(y, x)).
+	f(b(x, y, z), u) ~> h(u, f(x, h(y, x))).
+	b(a(x, y, z), y, x) ~> c(x, x, y, x).
+
+end_of_list.

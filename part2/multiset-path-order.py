@@ -11,12 +11,9 @@ class Term:
 	def print(self) -> None:
 		print(self.toString())
 		return
-	
+
 	def subterms(self):
 		return [self]
-
-	def children(self):
-		return []
 
 	def __eq__(self, other):
 		return self.toString() == other.toString()
@@ -45,15 +42,12 @@ class Function(Term):
 	def toString(self, print_index=True) -> str:
 		argStrings = [arg.toString(print_index) for arg in self.args]
 		return self.name + '(' + ', '.join(argStrings) + ')'
-	
+
 	def subterms(self):
 		terms = [self]
 		for arg in self.args:
 			terms += arg.subterms()
 		return terms
-
-	def children(self):
-		return self.args
 
 class Variable(Term):
 	name : str
@@ -118,7 +112,6 @@ inequalities.append(parse_inequality('h(g(x,g(u,z)),c(x,y,x,z)) > f(d(x,z),u)',3
 inequalities.append(parse_inequality('h(d(f(x,y),g(u,v)),f(x,y)) > f(c(u,x,v,y),g(y,x))',4))
 inequalities.append(parse_inequality('f(b(x,y,z),u) > h(u,f(x,h(y,x)))',5))
 inequalities.append(parse_inequality('b(a(x,y,z),y,x) > c(x,x,y,x)',6))
-# inequalities.append(parse_inequality('f(x) > x',7))
 
 solver = Solver()
 solver.set(':core.minimize', True)
@@ -180,8 +173,7 @@ for ineq in inequalities:
 				solver.add(Not(term_compare['>'][s][t]))
 
 			if isinstance(s, Function):
-				# solver.add(term_compare['>'][s][t] == Or(term_compare['>a'][s][t], term_compare['>b'][s][t], term_compare['>c'][s][t]))
-				solver.add(term_compare['>'][s][t] == Or(term_compare['>a'][s][t]))
+				solver.add(term_compare['>'][s][t] == Or(term_compare['>a'][s][t], term_compare['>b'][s][t], term_compare['>c'][s][t]))
 				solver.add(term_compare['>a'][s][t] == Or(*[term_compare['>~'][si][t] for si in s.args]))
 
 				if isinstance(t, Function):
@@ -234,23 +226,23 @@ for ineq in inequalities:
 
 	solver.add(term_compare['>'][ineq.lhs][ineq.rhs])
 
-# solver.add(Not(fun_ge['h']['d']))
 
-low = 0
-high = len(compares)
-while low+1 < high:
-	middle = (low+high)//2
-	solver.push()
-	solver.add(AtMost(*compares, middle))
-	satisfiable = solver.check()
-	if satisfiable == sat:
-		high = middle
-	else:
-		low = middle
-	solver.pop()
-print(high)
+# low = 0
+# high = len(compares)
+# while low+1 < high:
+#     middle = (low+high)//2
+#     solver.push()
+#     solver.add(AtMost(*compares, middle))
+#     satisfiable = solver.check()
+#     if satisfiable == sat:
+#         high = middle
+#     else:
+#         low = middle
+#     solver.pop()
+# solver.add(AtMost(*compares, high))
 
-solver.add(AtMost(*compares, high))
+# solver.add(Not(fun_gt['h']['d']))
+
 satisfiable = solver.check()
 if satisfiable != sat:
 	print("not satisfiable")
@@ -260,21 +252,21 @@ if satisfiable != sat:
 model = solver.model()
 
 comparator = lambda x,y : int(is_true(model[fun_gt[x][y]])) - int(is_true(model[fun_gt[y][x]]))
-functions = sorted(functions, key=functools.cmp_to_key(comparator))
+functions = sorted(functions, key=functools.cmp_to_key(comparator), reverse = True)
 prev = functions[0]
 first = True
 for f in functions:
 	if is_true(model[fun_eq[prev][f]]) and not first:
 		print(' = ', end='')
 	elif not first:
-		print(' < ', end='')
+		print(' > ', end='')
 	print(f, end='')
 	prev = f
 	first = False
 print()
 
 for index, ineq in enumerate(inequalities):
-	for s in sorted(list(set(ineq.lhs.subterms()))):
-		for t in sorted(list(set(ineq.rhs.subterms()))):
-			if is_true(model[term_compare['>'][s][t]]):
-				print(index+1, ':', s.toString(False), '>', t.toString(False))
+    for s in sorted(list(set(ineq.lhs.subterms()))):
+        for t in sorted(list(set(ineq.rhs.subterms()))):
+            if is_true(model[term_compare['>'][s][t]]):
+                print(index+1, ':', s.toString(False), '>', t.toString(False))

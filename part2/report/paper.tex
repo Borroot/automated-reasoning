@@ -1,6 +1,7 @@
 \documentclass{scrartcl}
 
 \usepackage{amsmath}
+\usepackage{amssymb}
 \usepackage{fancyhdr}
 \usepackage{minted}
 \usepackage{enumitem}
@@ -60,6 +61,7 @@ Bram Pulles (s1015194, \href{mailto:bram.pulles@ru.nl}{bram.pulles@ru.nl})}
 \end{enumerate}
 % section groups (end)
 
+\pagebreak
 \section{Robot} % (fold)
 \label{sec:robot}
 
@@ -120,11 +122,13 @@ Bram Pulles (s1015194, \href{mailto:bram.pulles@ru.nl}{bram.pulles@ru.nl})}
 	\label{sub:results}
 	When we run our program on the demogrid, we find that the minimal solution uses 11 steps\footnote{The problem statement gives a "solution for 10 steps", but the image shows a solution with 11 steps}. The assignment of directions is visualized in figure \ref{robot-demogrid-solution}.
 
-	On grid (a) our program finds that the minimal solution uses 14 steps. The assignment of directions is visualized in figure \ref{robot-grid-a-solution}
-
-	On grid (b) our program also finds a minimal solution of 14 steps, which is visualised in figure \ref{robot-grid-b-solution}
-
-	On grid (c) our program also finds a minimal solution of 18 steps, which is visualised in figure \ref{robot-grid-c-solution}
+	On grid (a) our program finds that the minimal solution uses 14 steps. The
+	assignment of directions is visualized in figure
+	\ref{robot-grid-a-solution}. On grid (b) our program also finds a minimal
+	solution of 14 steps, which is visualised in figure
+	\ref{robot-grid-b-solution}. On grid (c) our program also finds a minimal
+	solution of 18 steps, which is visualised in figure
+	\ref{robot-grid-c-solution}.
 
 	\begin{figure}
 		\begin{subfigure}{0.5\textwidth}
@@ -151,8 +155,118 @@ Bram Pulles (s1015194, \href{mailto:bram.pulles@ru.nl}{bram.pulles@ru.nl})}
 	\end{figure}
 	% subsection results (end)
 
-% section robot (end)
 
+\pagebreak
+\section{Multiset Path Ordering}
+\subsection{Explanation}
+In this problem we are given a set of inequalities. These inequalities contain
+terms which are either variables or functions over other terms. Our task is to
+find a Multiset Path Ordering (MPO), which is an ordering on terms generated
+from a total quasi-ordering relation $\trianglerighteq$ on the function
+symbols, using multiset comparison.
+
+To make our lives a bit easier we created a parser which can parse the
+inequalities. To this end we created four data structures which can represent:
+terms, functions, variables and inequalities. Notably, every one of these data
+structures has a function \texttt{subterms} which recursively goes down the
+term and gives all of its decendents. This is useful for when we define the
+relations on terms.
+
+We define the relations $\trianglerighteq, \rhd, \equiv$ on functions by
+creating a new boolean variable for every relation and every pair of functions,
+i.e. $\mathtt{\trianglerighteq_{fg}, \rhd_{fg}, \equiv_{fg}}$. To get the
+correct behavior we add the constraints which define these relations, see
+below. Note, that the relation $\leq$ is purely to prevent duplicates, such as
+$\mathtt{f \trianglerighteq g \lor g \trianglerighteq f}$ \textit{and}
+$\mathtt{g \trianglerighteq f \lor f \trianglerighteq g}$.
+
+$$\mathtt{\forall_f \forall_{f \leq g} \trianglerighteq_{fg} \lor
+\trianglerighteq_{gf}}$$
+
+$$\mathtt{\forall_f \forall_{f \leq g} \equiv_{fg}\ =\ \trianglerighteq_{fg}
+\land \trianglerighteq_{gf}}$$
+
+$$\mathtt{\forall_f \trianglerighteq_{ff}}$$
+
+$$\mathtt{\forall_f \forall_{g}\ \rhd_{fg} =\
+\trianglerighteq_{fg} \land \neg \trianglerighteq_{gf}}$$
+
+$$\mathtt{\forall_f \forall_{g} \forall_{h}\ \trianglerighteq_{fg} \land
+\trianglerighteq_{gh} \to\ \trianglerighteq_{fh}}$$
+
+We define the toprelations $\succsim, \succ, \approx$ on terms by creating a new
+variable for every relation and every pair of terms, i.e. $\succsim_{st},
+\succ_{st}, \approx_{st}$. To keep everything comprehensible we subdivide the
+relations $\succ, \approx$ and create new variables $\succ_{a,st},
+\succ_{b,st}, \succ_{c,st}, \approx_{a,st}, \approx_{b,st}$. The toprelations
+are now defined using the constraints shown below.
+
+$$\forall_s \forall_t \succsim_{st}\ =\ \succ_{st} \lor \approx_{st}$$
+$$\forall_s \forall_t \succ_{st}\ =\ \succ_{a,st} \lor \succ_{b,st} \lor \succ_{c,st}$$
+$$\forall_s \forall_t \approx_{st}\ =\ \approx_{a,st} \lor \approx_{b,st}$$
+
+We define constraints for when the types do not match. For example, when
+either $s$ or $t$ is a function we restrict $\neg\approx_{a,st}$. We do the
+same for all the other subrelations, these constraints follow trivially and
+will not be written out. The constraints for when the types do match are
+nontrivial. The simple subrelation constraints are as follows.
+
+$$\forall_{s = \mathtt{f}(s_1, \dots, s_n)} \forall_t \succ_{a,st}\ =
+\bigvee_{s_i} \succsim_{s_i,t}$$
+
+$$\forall_{s = \mathtt{f}(s_1, \dots, s_n)} \forall_{t = \mathtt{g}(t_1, \dots,
+t_m)} \succ_{b,st}\ = \rhd_{\mathtt{f,g}} \land \bigwedge_{t_i} \succ_{s,t_i}$$
+
+$$\forall_s \forall_t \approx_{a,st}\ =\ \approx_{st}$$
+
+We are now left with the two constraints which use the multiset properties. We
+will first take a look at $\approx_{b,st}$. Note, when $s$ or $t$ is not a
+function, or the number of arguments in $s$ and $t$ are not the same we have
+$\neg \approx_{b,st}$. For all of the other cases, where $s=\mathtt{f}(s_1,
+\dots, t_n)$ and $t=\mathtt{g}(t_1, \dots, t_n)$, we check whether there exists
+a permutation of the arguments of $t$ such that $\forall_n \approx_{s_i,t_i}$.
+We define $\mathcal{P}(t_1, \dots, t_n)$ to give all the possible permutations
+and use $t^p_i$ to denote $t_i$ in permutation $p \in \mathcal{P}$.
+
+$$\forall_{s = \mathtt{f}(s_1, \dots, s_n)} \forall_{t = \mathtt{g}(t_1, \dots,
+t_m)} \approx_{b,st}\ =\ \equiv_{\mathtt{f,g}} \land \bigvee_{p \in
+\mathcal{P}(t_1, \dots, t_n)} \bigwedge_i \approx_{s_i,t^p_i}$$
+
+The final constraint $\succ_{c,st}$ is the most elaborate of all. We use the
+tip provided in the assignment. We generate all the possible $\mathtt{EQ}$ and
+$\varphi$, such that $\exists_{i \in \{1, \dots, n\}}\ \mathtt{EQ}(i) = \bot$
+and $\forall_i\ \mathtt{EQ}(\varphi(i)) = \top \to \forall_{j \neq i}\
+\varphi(i) \neq \varphi(j)$. We can do this by generating all $\mathtt{EQ}$ and
+$\varphi$, then filtering out the functions which do not satisfy the given
+constraints. We define $\mathcal{P}^\mathtt{EQ}_\varphi(n, m)$ to give all the
+$\mathtt{EQ}, \varphi$ pairs which satisfy the given constraints. The final
+constraint is given below, seperated for when $\mathtt{EQ}(\varphi(i)) = \bot$
+or $\mathtt{EQ}(\varphi(i)) = \top$.
+
+$$\forall_{s = \mathtt{f}(s_1, \dots, s_n)} \forall_{t = \mathtt{g}(t_1, \dots,
+t_m)} \succ_{c,st}\ =\ \equiv_{\mathtt{f,g}} \land \bigvee_{\mathtt{EQ},
+\varphi \in \mathcal{P}^\mathtt{EQ}_\varphi(n, m)}
+\left(
+	\bigwedge_{i,\mathtt{EQ}(\varphi(i)) = \bot} \succ_{s_{\varphi(i)},t_i}
+	\bigwedge_{i,\mathtt{EQ}(\varphi(i)) = \top} \approx_{s_{\varphi(i)},t_i}
+\right)
+$$
+\subsection{Results}
+Running Z3 with all the constraints and variable definitions as given above
+provides us with the following ordering: $\mathtt{a \rhd c \rhd f \rhd g \rhd b
+\rhd h \rhd d }$. Finding another symbol ordering is rather easy, we just added
+the constraint $\mathtt{\neg \rhd_{h,d}}$. This gives us a new symbol ordering:
+$\mathtt{a \rhd c \rhd b \equiv f \rhd g \rhd d \rhd h}$.
+
+The human-readable proof for the inequality
+$\mathtt{h}(\mathtt{g}(x,\mathtt{g}(u,z)),\mathtt{c}(x,y,x,z)) \rhd
+\mathtt{f}(\mathtt{d}(x,z),u)$ given the first ordering is as follows.
+By 2b it suffices to proof that $\mathtt{h \rhd d}$ which holds, and
+$\mathtt{h}(\mathtt{g}(x,\mathtt{g}(u,z)),\mathtt{c}(x,y,x,z))~\succ~x$, and
+$\mathtt{h}(\mathtt{g}(x,\mathtt{g}(u,z)),\mathtt{c}(x,y,x,z))~\succ~z$. Now
+these two inequalities trivially follow from recursively applying rule 2a until
+a variable $x$ or $z$ is reached inside the arguments of $\mathtt{h}$, using 3a
+on the variables completes the proof.
 
 \pagebreak
 \section{Mosaic} % (fold)
