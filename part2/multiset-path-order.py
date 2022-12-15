@@ -5,7 +5,7 @@ import sys
 
 class Term:
 	""" The base class for terms """
-	def toString(self) -> str:
+	def toString(self, print_index=True) -> str:
 		pass
 
 	def print(self) -> None:
@@ -42,8 +42,8 @@ class Function(Term):
 		self.name = name
 		self.args = args
 
-	def toString(self) -> str:
-		argStrings = [arg.toString() for arg in self.args]
+	def toString(self, print_index=True) -> str:
+		argStrings = [arg.toString(print_index) for arg in self.args]
 		return self.name + '(' + ', '.join(argStrings) + ')'
 	
 	def subterms(self):
@@ -63,8 +63,11 @@ class Variable(Term):
 		self.name = name
 		self.index = index
 
-	def toString(self) -> str:
-		return self.name + '{' + str(self.index) + '}'
+	def toString(self, print_index=True) -> str:
+		if print_index:
+			return self.name + '{' + str(self.index) + '}'
+		else:
+			return self.name
 
 	def subterms(self):
 		return [self]
@@ -109,13 +112,13 @@ def parse_inequality(string : str, index : int) -> Comparison:
 	return Comparison(lhs, rhs)
 
 inequalities = []
-# inequalities.append(parse_inequality('c(x,y,u,v) > b(f(x,y),b(u,u,u),g(v,b(x,y,u)))',1))
-# inequalities.append(parse_inequality('b(f(x,y),g(x,y),f(x,g(z,u))) > b(f(x,z),y,g(g(g(y,x),x),x))',2))
-# inequalities.append(parse_inequality('h(g(x,g(u,z)),c(x,y,x,z)) > f(d(x,z),u)',3))
-# inequalities.append(parse_inequality('h(d(f(x,y),g(u,v)),f(x,y)) > f(c(u,x,v,y),g(y,x))',4))
-# inequalities.append(parse_inequality('f(b(x,y,z),u) > h(u,f(x,h(y,x)))',5))
-# inequalities.append(parse_inequality('b(a(x,y,z),y,x) > c(x,x,y,x)',6))
-inequalities.append(parse_inequality('f(x) > x',7))
+inequalities.append(parse_inequality('c(x,y,u,v) > b(f(x,y),b(u,u,u),g(v,b(x,y,u)))',1))
+inequalities.append(parse_inequality('b(f(x,y),g(x,y),f(x,g(z,u))) > b(f(x,z),y,g(g(g(y,x),x),x))',2))
+inequalities.append(parse_inequality('h(g(x,g(u,z)),c(x,y,x,z)) > f(d(x,z),u)',3))
+inequalities.append(parse_inequality('h(d(f(x,y),g(u,v)),f(x,y)) > f(c(u,x,v,y),g(y,x))',4))
+inequalities.append(parse_inequality('f(b(x,y,z),u) > h(u,f(x,h(y,x)))',5))
+inequalities.append(parse_inequality('b(a(x,y,z),y,x) > c(x,x,y,x)',6))
+# inequalities.append(parse_inequality('f(x) > x',7))
 
 solver = Solver()
 solver.set(':core.minimize', True)
@@ -164,12 +167,15 @@ for symbol in symbols:
 			for t in right_terms:
 				term_compare[symbol][s][t] = Bool(s.toString() + symbol + t.toString())
 
+compares = []
+
 for ineq in inequalities:
 	left_terms = sorted(list(set(ineq.lhs.subterms())))
 	right_terms = sorted(list(set(ineq.rhs.subterms())))
 	for s in left_terms:
 		for t in right_terms:
-			solver.add(term_compare['>~'][s][t] == And(term_compare['>'][s][t], term_compare['~'][s][t]))
+			compares.append(term_compare['>'][s][t])
+			solver.add(term_compare['>~'][s][t] == Or(term_compare['>'][s][t], term_compare['~'][s][t]))
 			if isinstance(s, Variable):
 				solver.add(Not(term_compare['>'][s][t]))
 
@@ -204,11 +210,7 @@ for ineq in inequalities:
 									condition.append(term_compare['~'][s.args[phi[i]]][t.args[i]])
 								else:
 									condition.append(term_compare['>'][s.args[phi[i]]][t.args[i]])
-							# print(phi,eq,And(*condition), file=sys.stderr)
 							conditions.append(And(*condition))
-					print(Or(*conditions), file=sys.stderr)
-					# solver.add(term_compare['>c'][s][t] == False)
-					# solver.add(term_compare['>c'][s][t] == And(fun_eq[s.name][t.name], True))
 					solver.add(term_compare['>c'][s][t] == And(fun_eq[s.name][t.name], Or(*conditions)))
 				else:
 					solver.add(Not(term_compare['>b'][s][t]))
@@ -232,6 +234,23 @@ for ineq in inequalities:
 
 	solver.add(term_compare['>'][ineq.lhs][ineq.rhs])
 
+# solver.add(Not(fun_ge['h']['d']))
+
+low = 0
+high = len(compares)
+while low+1 < high:
+	middle = (low+high)//2
+	solver.push()
+	solver.add(AtMost(*compares, middle))
+	satisfiable = solver.check()
+	if satisfiable == sat:
+		high = middle
+	else:
+		low = middle
+	solver.pop()
+print(high)
+
+solver.add(AtMost(*compares, high))
 satisfiable = solver.check()
 if satisfiable != sat:
 	print("not satisfiable")
@@ -254,7 +273,8 @@ for f in functions:
 	first = False
 print()
 
-for s in term_compare['>'].keys():
-	for t in term_compare['>'][s].keys():
-		if is_true(model[term_compare['>'][s][t]]):
-			print(s.toString(), '>', t.toString())
+for index, ineq in enumerate(inequalities):
+	for s in sorted(list(set(ineq.lhs.subterms()))):
+		for t in sorted(list(set(ineq.rhs.subterms()))):
+			if is_true(model[term_compare['>'][s][t]]):
+				print(index+1, ':', s.toString(False), '>', t.toString(False))
