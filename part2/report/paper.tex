@@ -251,22 +251,41 @@ t_m)} \succ_{c,st}\ =\ \equiv_{\mathtt{f,g}} \land \bigvee_{\mathtt{EQ},
 	\bigwedge_{i,\mathtt{EQ}(\varphi(i)) = \top} \approx_{s_{\varphi(i)},t_i}
 \right)
 $$
-\subsection{Results}
-Running Z3 with all the constraints and variable definitions as given above
-provides us with the following ordering: $\mathtt{a \rhd c \rhd f \rhd g \rhd b
-\rhd h \rhd d }$. Finding another symbol ordering is rather easy, we just added
-the constraint $\mathtt{\neg \rhd_{h,d}}$. This gives us a new symbol ordering:
-$\mathtt{a \rhd c \rhd b \equiv f \rhd g \rhd d \rhd h}$.
 
-The human-readable proof for the inequality
-$\mathtt{h}(\mathtt{g}(x,\mathtt{g}(u,z)),\mathtt{c}(x,y,x,z)) \rhd
-\mathtt{f}(\mathtt{d}(x,z),u)$ given the first ordering is as follows.
-By 2b it suffices to proof that $\mathtt{h \rhd d}$ which holds, and
-$\mathtt{h}(\mathtt{g}(x,\mathtt{g}(u,z)),\mathtt{c}(x,y,x,z))~\succ~x$, and
-$\mathtt{h}(\mathtt{g}(x,\mathtt{g}(u,z)),\mathtt{c}(x,y,x,z))~\succ~z$. Now
-these two inequalities trivially follow from recursively applying rule 2a until
-a variable $x$ or $z$ is reached inside the arguments of $\mathtt{h}$, using 3a
-on the variables completes the proof.
+\subsection{Results}
+Running Z3 with all the constraints and variable definitions as given above provides us with the following order: $\mathtt{a \rhd c \equiv d \rhd b \rhd f \equiv h \rhd g}$.
+For this order we get the following proof for inequality 3:\\
+\begin{tabular}{l|lll}
+	Line & Statement & Rule & Children\\
+	\hline
+	1 & $u \approx u$ & 3a & \\
+	2 & $u\succsim u$ & 1 & 1\\
+	3 & $x \approx x$ & 3a & \\
+	4 & $z \approx z$ & 3a & \\
+	5 & $g(u,z) \succ u$ & 2a & 2\\
+	6 & $g(u,z) \succsim u$ & 1 & 5\\
+	7 & $g(x, g(u, z)) \succ u$ & 2a & 6\\
+	8 & $c(x, y, x, z) \succ d(x,z)$ & 2c & $c\equiv d$, 3, 4, $A_2=\{\{x,y\}\}$\\
+	9 & $h(g(x, g(u, z)), c(x, y, x, z)) \succ f(d(x, z), u)$ & 2c & $h \equiv f$, 7, 8
+\end{tabular}\\
+This is the only order for which all inequalities are provable.
+
+
+% Running Z3 with all the constraints and variable definitions as given above
+% provides us with the following ordering: $\mathtt{a \rhd c \rhd f \rhd g \rhd b
+% \rhd h \rhd d }$. Finding another symbol ordering is rather easy, we just added
+% the constraint $\mathtt{\neg \rhd_{h,d}}$. This gives us a new symbol ordering:
+% $\mathtt{a \rhd c \rhd b \equiv f \rhd g \rhd d \rhd h}$.
+
+% The human-readable proof for the inequality
+% $\mathtt{h}(\mathtt{g}(x,\mathtt{g}(u,z)),\mathtt{c}(x,y,x,z)) \rhd
+% \mathtt{f}(\mathtt{d}(x,z),u)$ given the first ordering is as follows.
+% By 2b it suffices to proof that $\mathtt{h \rhd d}$ which holds, and
+% $\mathtt{h}(\mathtt{g}(x,\mathtt{g}(u,z)),\mathtt{c}(x,y,x,z))~\succ~x$, and
+% $\mathtt{h}(\mathtt{g}(x,\mathtt{g}(u,z)),\mathtt{c}(x,y,x,z))~\succ~z$. Now
+% these two inequalities trivially follow from recursively applying rule 2a until
+% a variable $x$ or $z$ is reached inside the arguments of $\mathtt{h}$, using 3a
+% on the variables completes the proof.
 
 \pagebreak
 \section{Mosaic} % (fold)
@@ -339,14 +358,14 @@ on the variables completes the proof.
 	\begin{tabular}{ll}
 		hinted & a puzzle that satisfies the generated constraints\\
 		filled & an alternate solution to that puzzle\\
-		contributes & places where the count of surrounding black squares differ.
+		differs & places where the count of surrounding black squares differ.
 	\end{tabular}
 
 	Again we encode these variables with a 0-1 constrained integer in Z3:
 
 	$$\forall_{r,c}: 0\le \text{hinted}_{r,c} \le 1$$
 	$$\forall_{r,c}: 0\le \text{filled}_{r,c} \le 1$$
-	$$\forall_{r,c}: 0\le \text{contributes}_{r,c} \le 1$$
+	$$\forall_{r,c}: 0\le \text{differs}_{r,c} \le 1$$
 
 	We replace the number constraint with a new one that takes into account whether a number is placed into a cell:
 
@@ -358,11 +377,11 @@ on the variables completes the proof.
 
 	Next we encode that a cell differentiates both solutions when the black counts differ:
 
-	$$\forall_{r,c}: \sum_{\substack{r-1\le r' \le r+1\\c-1\le c'\le c+1}}\text{grid}_{r',c'} = \sum_{\substack{r-1\le r' \le r+1\\c-1\le c'\le c+1}}\text{filled}_{r',c'}\to \text{contributes}_{r,c}=1$$
+	$$\forall_{r,c}: \sum_{\substack{r-1\le r' \le r+1\\c-1\le c'\le c+1}}\text{grid}_{r',c'} = \sum_{\substack{r-1\le r' \le r+1\\c-1\le c'\le c+1}}\text{filled}_{r',c'}\to \text{differs}_{r,c}=1$$
 
 	The clause we generate has a literal for every cell that distinguishes both solutions. Since SMT solvers are generally faster on smaller clauses, we minimize the number of cells that distinguish both solutions.
 
-	$$\sum_{r,c}\text{constributes}_{r,c} = \min_{}(\sum_{r,c}\text{contributes}_{r,c}
+	$$\sum_{r,c}\text{differs}_{r,c} = \min_{}(\sum_{r,c}\text{differs}_{r,c}
 	)$$
 
 	When we run the first optimizer, we can have two results.
@@ -370,7 +389,7 @@ on the variables completes the proof.
 
 	In the other case the solver provides a model that includes a puzzle, an alternate solution and the places where the black counts differ. We will add a new clause to both optimizers that encodes that a puzzle should distinguish both solutions:
 
-	$$\exists_{r,c : \text{model}(\text{contributes}_{r,c})=1}: \text{hinted}_{r,c}$$
+	$$\exists_{r,c : \text{model}(\text{differs}_{r,c})=1}: \text{hinted}_{r,c}$$
 
 	After adding this constraint we run the first optimizer again to see if there are still alternate solutions.\\
 
