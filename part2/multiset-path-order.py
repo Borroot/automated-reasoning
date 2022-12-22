@@ -32,6 +32,7 @@ class Term:
 
 
 class Function(Term):
+	"""A class representing a function term with its arguments"""
 	name : str
 	args : list[Term]
 
@@ -49,7 +50,9 @@ class Function(Term):
 			terms += arg.subterms()
 		return terms
 
+
 class Variable(Term):
+	"""A class representing a variable."""
 	name : str
 	index : int
 
@@ -66,6 +69,7 @@ class Variable(Term):
 	def subterms(self):
 		return [self]
 
+
 def parse_at_pos(string : str, index : int, pos : int) -> (Term, int):
 	while pos < len(string) and not string[pos].isalpha():
 		pos += 1
@@ -81,11 +85,14 @@ def parse_at_pos(string : str, index : int, pos : int) -> (Term, int):
 		args.append(arg)
 	return Function(name, *args), pos+1
 
+
 def parse(string : str, index : int) -> Term:
-	t, pos = parse_at_pos(string, index, 0)
+	t, _pos = parse_at_pos(string, index, 0)
 	return t
 
+
 class Comparison:
+	"""A class representing an inequality."""
 	lhs : Term
 	rhs : Term
 
@@ -93,50 +100,58 @@ class Comparison:
 		self.lhs = lhs
 		self.rhs = rhs
 
+	def subterms(self):
+		"""Returns the unique subterms of the lhs and rhs in sorted order."""
+		return sorted(list(set(self.lhs.subterms()))), sorted(list(set(self.rhs.subterms())))
+
 	def toString(self):
 		return self.lhs.toString() + ' > ' + self.rhs.toString()
 
 	def print(self):
 		print(self.toString())
 
-def parse_inequality(string : str, index : int) -> Comparison:
+
+uid = 0  # used to generate unique variable names
+def parse_inequality(string : str) -> Comparison:
+	global uid
 	lhs, rhs = string.split('>')
-	lhs = parse(lhs, index)
-	rhs = parse(rhs, index)
+	lhs = parse(lhs, uid)
+	rhs = parse(rhs, uid)
+	uid += 1
 	return Comparison(lhs, rhs)
 
-inequalities = []
-inequalities.append(parse_inequality('c(x,y,u,v) > b(f(x,y),b(u,u,u),g(v,b(x,y,u)))',1))
-inequalities.append(parse_inequality('b(f(x,y),g(x,y),f(x,g(z,u))) > b(f(x,z),y,g(g(g(y,x),x),x))',2))
-inequalities.append(parse_inequality('h(g(x,g(u,z)),c(x,y,x,z)) > f(d(x,z),u)',3))
-inequalities.append(parse_inequality('h(d(f(x,y),g(u,v)),f(x,y)) > f(c(u,x,v,y),g(y,x))',4))
-inequalities.append(parse_inequality('f(b(x,y,z),u) > h(u,f(x,h(y,x)))',5))
-inequalities.append(parse_inequality('b(a(x,y,z),y,x) > c(x,x,y,x)',6))
 
+# Parse the inequalities
+inequalities = list(map(parse_inequality, [
+	'c(x,y,u,v) > b(f(x,y),b(u,u,u),g(v,b(x,y,u)))',
+	'b(f(x,y),g(x,y),f(x,g(z,u))) > b(f(x,z),y,g(g(g(y,x),x),x))',
+	'h(g(x,g(u,z)),c(x,y,x,z)) > f(d(x,z),u)',
+	'h(d(f(x,y),g(u,v)),f(x,y)) > f(c(u,x,v,y),g(y,x))',
+	'f(b(x,y,z),u) > h(u,f(x,h(y,x)))',
+	'b(a(x,y,z),y,x) > c(x,x,y,x)',
+]))
+
+# Create the solver and minimize the unsat core for unsat examples
 solver = Solver()
 solver.set(':core.minimize', True)
 
+# Generate all the unique subterms
 subterms = []
 for ineq in inequalities:
 	subterms += ineq.lhs.subterms()
 	subterms += ineq.rhs.subterms()
 subterms = sorted(list(set(subterms)))
 
+# Generate all the unique functions
 functions = [term.name for term in subterms if isinstance(term, Function)]
 functions = sorted(list(set(functions)))
 
-fun_ge = {}
-fun_gt = {}
-fun_eq = {}
-for f in functions:
-	fun_ge[f] = {}
-	fun_gt[f] = {}
-	fun_eq[f] = {}
-	for g in functions:
-		fun_ge[f][g] = Bool(f + '|>=' + g)
-		fun_gt[f][g] = Bool(f + '|>' + g)
-		fun_eq[f][g] = Bool(f + '=' + g)
+# Generate the function ordering variables
+fun_ge = {f : {g : Bool(f + '|>=' + g) for g in functions} for f in functions}
+fun_gt = {f : {g : Bool(f + '|>' + g) for g in functions} for f in functions}
+fun_eq = {f : {g : Bool(f + '=' + g) for g in functions} for f in functions}
 
+# Generate the function ordering constraints
 for f in functions:
 	for g in functions:
 		if f <= g:
@@ -147,37 +162,48 @@ for f in functions:
 		solver.add(fun_gt[f][g] == And(fun_ge[f][g], Not(fun_ge[g][f])))
 	solver.add(fun_ge[f][f])
 
+# Generate the term ordering variables
 symbols = ['>', '>~', '~', '>a', '>b', '>c', '~a', '~b']
 
+# Generate a term compare variable for each pair of terms and each symbol
+# term_compare[symbol][s][t] is the variable representing s symbol t
 term_compare = {}
 for symbol in symbols:
 	term_compare[symbol] = {}
 	for ineq in inequalities:
-		left_terms = sorted(list(set(ineq.lhs.subterms())))
-		right_terms = sorted(list(set(ineq.rhs.subterms())))
+		left_terms, right_terms = ineq.subterms()
 		for s in left_terms:
 			term_compare[symbol][s] = {}
 			for t in right_terms:
 				term_compare[symbol][s][t] = Bool(s.toString() + symbol + t.toString())
 
+# The total number of comparisons made with >, used to simplify the proof
 compares = []
 
 for ineq in inequalities:
-	left_terms = sorted(list(set(ineq.lhs.subterms())))
-	right_terms = sorted(list(set(ineq.rhs.subterms())))
+	left_terms, right_terms = ineq.subterms()
 	for s in left_terms:
 		for t in right_terms:
 			compares.append(term_compare['>'][s][t])
+
+			# Set constraint 1
 			solver.add(term_compare['>~'][s][t] == Or(term_compare['>'][s][t], term_compare['~'][s][t]))
+
 			if isinstance(s, Variable):
 				solver.add(Not(term_compare['>'][s][t]))
 
 			if isinstance(s, Function):
+				# Set constraint 2
 				solver.add(term_compare['>'][s][t] == Or(term_compare['>a'][s][t], term_compare['>b'][s][t], term_compare['>c'][s][t]))
+
+				# Set constraint 2a
 				solver.add(term_compare['>a'][s][t] == Or(*[term_compare['>~'][si][t] for si in s.args]))
 
 				if isinstance(t, Function):
+					# Set constraint 2b
 					solver.add(term_compare['>b'][s][t] == And(fun_gt[s.name][t.name], *[term_compare['>'][s][ti] for ti in t.args]))
+
+					# Generate all the functions phi and EQ
 					conditions = []
 					n = len(s.args)
 					m = len(t.args)
@@ -190,7 +216,7 @@ for ineq in inequalities:
 								if eq[phi[i]] and 1 < phi.count(phi[i]):
 									valid = False
 							for i in range(n):
-								if i not in phi and not eq[i]:
+								if i not in phi and eq[i]:
 									valid = False
 
 							if not valid:
@@ -203,14 +229,18 @@ for ineq in inequalities:
 								else:
 									condition.append(term_compare['>'][s.args[phi[i]]][t.args[i]])
 							conditions.append(And(*condition))
+
+					# Set constraint 2c
 					solver.add(term_compare['>c'][s][t] == And(fun_eq[s.name][t.name], Or(*conditions)))
 				else:
 					solver.add(Not(term_compare['>b'][s][t]))
 					solver.add(Not(term_compare['>c'][s][t]))
 
+			# Set constraint 3
 			solver.add(term_compare['~'][s][t] == Or(term_compare['~a'][s][t], term_compare['~b'][s][t]))
 
 			if isinstance(s, Variable) and isinstance(t, Variable) and s.name == t.name and s.index == t.index:
+				# Set constraint 3a
 				solver.add(term_compare['~a'][s][t])
 			else:
 				solver.add(Not(term_compare['~a'][s][t]))
@@ -220,27 +250,29 @@ for ineq in inequalities:
 				conditions = []
 				for rhs in itertools.permutations(t.args):
 					conditions.append(And(*[term_compare['~'][lhs[i]][rhs[i]] for i in range(len(lhs))]))
+				# Set constraint 3b
 				solver.add(term_compare['~b'][s][t] == And(fun_eq[s.name][t.name], Or(*conditions)))
 			else:
 				solver.add(Not(term_compare['~b'][s][t]))
 
 	solver.add(term_compare['>'][ineq.lhs][ineq.rhs])
 
+# Do a binairy search trying to minimize the final proof
+low = 0
+high = len(compares)
+while low + 1 < high:
+	middle = (low + high) // 2
+	solver.push()
+	solver.add(AtMost(*compares, middle))
+	satisfiable = solver.check()
+	if satisfiable == sat:
+		high = middle
+	else:
+		low = middle
+	solver.pop()
+solver.add(AtMost(*compares, high))
 
-# low = 0
-# high = len(compares)
-# while low+1 < high:
-#     middle = (low+high)//2
-#     solver.push()
-#     solver.add(AtMost(*compares, middle))
-#     satisfiable = solver.check()
-#     if satisfiable == sat:
-#         high = middle
-#     else:
-#         low = middle
-#     solver.pop()
-# solver.add(AtMost(*compares, high))
-
+# Get another solution by uncommenting this
 # solver.add(Not(fun_gt['h']['d']))
 
 satisfiable = solver.check()
@@ -251,6 +283,7 @@ if satisfiable != sat:
 
 model = solver.model()
 
+# Print the function order
 comparator = lambda x,y : int(is_true(model[fun_gt[x][y]])) - int(is_true(model[fun_gt[y][x]]))
 functions = sorted(functions, key=functools.cmp_to_key(comparator), reverse = True)
 prev = functions[0]
@@ -265,8 +298,9 @@ for f in functions:
 	first = False
 print()
 
-for index, ineq in enumerate(inequalities):
-    for s in sorted(list(set(ineq.lhs.subterms()))):
-        for t in sorted(list(set(ineq.rhs.subterms()))):
-            if is_true(model[term_compare['>'][s][t]]):
-                print(index+1, ':', s.toString(False), '>', t.toString(False))
+# Print all the inquality realations between terms
+# for index, ineq in enumerate(inequalities):
+# 	for s in sorted(list(set(ineq.lhs.subterms()))):
+# 		for t in sorted(list(set(ineq.rhs.subterms()))):
+# 			if is_true(model[term_compare['>'][s][t]]):
+# 				print(index+1, ':', s.toString(False), '>', t.toString(False))
