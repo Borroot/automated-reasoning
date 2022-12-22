@@ -147,18 +147,18 @@ functions = [term.name for term in subterms if isinstance(term, Function)]
 functions = sorted(list(set(functions)))
 
 # Generate the function ordering variables
-fun_ge = {f : {g : Bool(f + '|>=' + g) for g in functions} for f in functions}
-fun_gt = {f : {g : Bool(f + '|>' + g) for g in functions} for f in functions}
-fun_eq = {f : {g : Bool(f + '=' + g) for g in functions} for f in functions}
+fun_ge = {f : {g : Bool(f + ' |>= ' + g) for g in functions} for f in functions}
+fun_gt = {f : {g : Bool(f + ' |> ' + g) for g in functions} for f in functions}
+fun_eq = {f : {g : Bool(f + ' = ' + g) for g in functions} for f in functions}
 
 # Generate the function ordering constraints
 for f in functions:
 	for g in functions:
 		if f <= g:
 			solver.add(Or(fun_ge[f][g], fun_ge[g][f]))
-			solver.add(fun_eq[f][g] == And(fun_ge[f][g], fun_ge[g][f]))
 		for h in functions:
 			solver.add(Implies(And(fun_ge[f][g], fun_ge[g][h]), fun_ge[f][h]))
+		solver.add(fun_eq[f][g] == And(fun_ge[f][g], fun_ge[g][f]))
 		solver.add(fun_gt[f][g] == And(fun_ge[f][g], Not(fun_ge[g][f])))
 	solver.add(fun_ge[f][f])
 
@@ -175,16 +175,18 @@ for symbol in symbols:
 		for s in left_terms:
 			term_compare[symbol][s] = {}
 			for t in right_terms:
-				term_compare[symbol][s][t] = Bool(s.toString() + symbol + t.toString())
+				term_compare[symbol][s][t] = Bool(s.toString() + ' ' + symbol + ' ' + t.toString())
 
 # The total number of comparisons made with >, used to simplify the proof
 compares = []
 
-for ineq in inequalities:
+for index, ineq in enumerate(inequalities):
 	left_terms, right_terms = ineq.subterms()
 	for s in left_terms:
 		for t in right_terms:
-			compares.append(term_compare['>'][s][t])
+			if index == 2:
+				for symbol in symbols:
+					compares.append(term_compare[symbol][s][t])
 
 			# Set constraint 1
 			solver.add(term_compare['>~'][s][t] == Or(term_compare['>'][s][t], term_compare['~'][s][t]))
@@ -257,7 +259,18 @@ for ineq in inequalities:
 
 	solver.add(term_compare['>'][ineq.lhs][ineq.rhs])
 
-# Do a binairy search trying to minimize the final proof
+# Get another solution by uncommenting this
+# a ▷ c ≡ d ▷ b ▷ f ≡ h ▷ g
+solver.add(Or(
+	Not(fun_gt['a']['c']),
+	Not(fun_eq['c']['d']),
+	Not(fun_gt['d']['b']),
+	Not(fun_gt['b']['f']),
+	Not(fun_eq['f']['h']),
+	Not(fun_gt['h']['g'])
+))
+
+# Do a binary search trying to minimize the final proof
 low = 0
 high = len(compares)
 while low + 1 < high:
@@ -270,15 +283,12 @@ while low + 1 < high:
 	else:
 		low = middle
 	solver.pop()
+print(high)
 solver.add(AtMost(*compares, high))
-
-# Get another solution by uncommenting this
-# solver.add(Not(fun_gt['h']['d']))
 
 satisfiable = solver.check()
 if satisfiable != sat:
 	print("not satisfiable")
-	print(solver.unsat_core())
 	quit()
 
 model = solver.model()
@@ -298,9 +308,9 @@ for f in functions:
 	first = False
 print()
 
-# Print all the inquality realations between terms
-# for index, ineq in enumerate(inequalities):
-# 	for s in sorted(list(set(ineq.lhs.subterms()))):
-# 		for t in sorted(list(set(ineq.rhs.subterms()))):
-# 			if is_true(model[term_compare['>'][s][t]]):
-# 				print(index+1, ':', s.toString(False), '>', t.toString(False))
+for index, ineq in enumerate(inequalities):
+    for s in sorted(list(set(ineq.lhs.subterms()))):
+        for t in sorted(list(set(ineq.rhs.subterms()))):
+        	for symbol in symbols:
+	            if is_true(model[term_compare[symbol][s][t]]):
+	                print(index+1, ':', s.toString(False), symbol, t.toString(False))
